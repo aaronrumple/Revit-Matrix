@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>TheRevitMatrix</AssemblyName>
+    <Product>The Revit Matrix</Product>
+    <AssemblyTitle>The Revit Matrix</AssemblyTitle>
+    <RootNamespace>RevitJournalViewer</RootNamespace>
+    <!-- Lets you also build from a non-Windows box; harmless on Windows -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Fast, virtualized text view with per-line coloring -->
+    <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+  </ItemGroup>
+
+</Project>
