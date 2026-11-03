@@ -113,6 +113,10 @@ Assets/                       app icon and logo, splash artwork, PyPiPie logo
 help/TheRevitMatrix_Help.html user guide (F1)
 ```
 
+## Privacy
+
+The Revit Matrix does not collect or send any personal data. See the [Privacy Policy](PRIVACY.md).
+
 ## License
 
 GPL-3.0. See [LICENSE](LICENSE).
