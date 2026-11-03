@@ -119,6 +119,6 @@ The Revit Matrix does not collect or send any personal data. See the [Privacy Po
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE).
+GPL-3.0-or-later. See [LICENSE](LICENSE) for the full license and [COPYRIGHT](COPYRIGHT) for the copyright notice.
 
 © 2026 [Aaron Rumple, AIA](https://www.linkedin.com/in/aaronrumple/)
