@@ -1,14 +1,13 @@
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.Win32;
@@ -32,6 +31,7 @@ public partial class MainWindow : Window
     private readonly JournalColorizer _colorizer = new();
     private readonly AppSettings _settings = AppSettings.Load();
     private Theme _theme = Theme.Dark;
+    private string _themeMode = "Auto";      // Auto follows the Windows (and Revit) theme
 
     // Lines currently in the output document; document line N == _shown[N-1].
     private readonly List<JLine> _shown = new();
@@ -62,6 +62,7 @@ public partial class MainWindow : Window
         Output.Options.EnableHyperlinks = false;
         Output.Options.EnableEmailHyperlinks = false;
         Output.TextArea.TextView.LineTransformers.Add(_colorizer);
+        ICSharpCode.AvalonEdit.Search.SearchPanel.Install(Output);   // Ctrl+F
 
         // Gutter with journal line numbers and timestamps.
         _margin = new LineInfoMargin(_shown)
@@ -77,7 +78,10 @@ public partial class MainWindow : Window
             if (Enum.TryParse<JKind>(name, out var k)) _hidden.Add(k);
 
         BuildCategoryChips();
-        ApplyTheme(Theme.ByName(_settings.Theme));
+        _themeMode = _settings.ThemeMode is "Dark" or "Light" ? _settings.ThemeMode : "Auto";
+        ApplyTheme(Theme.ForMode(_themeMode));
+        SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
+        VersionText.Text = App.VersionLabel;
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _pollTimer.Tick += (_, _) => { Poll(); UpdateStatusBar(); };
@@ -88,8 +92,6 @@ public partial class MainWindow : Window
     }
 
     // ---------------------------------------------------------------- lifecycle
-
-    private void Window_SourceInitialized(object? sender, EventArgs e) => ApplyTitleBar();
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
@@ -103,6 +105,7 @@ public partial class MainWindow : Window
         _pollTimer.Stop();
         _sessionTimer.Stop();
         _tailer?.Dispose();
+        SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SaveSettings();
     }
 
@@ -124,42 +127,71 @@ public partial class MainWindow : Window
         foreach (var (kind, chip) in _chips)
             chip.Dot.Fill = theme.StyleFor(kind).Brush;
 
-        ThemeButton.Content = theme == Theme.Dark ? "Light theme" : "Dark theme";
+        ThemeButton.Content = $"Theme: {_themeMode}";
 
-        ApplyTitleBar();
         UpdateStatusBar(force: true);
     }
 
-    // ---------------------------------------------------------------- title bar (Windows DWM)
+    // ---------------------------------------------------------------- PyPiPie window chrome
 
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
-
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19; // Windows 10 before 20H1
-    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;     // Windows 10 20H1+ / 11
-    private const int DWMWA_CAPTION_COLOR = 35;               // Windows 11
-    private const int DWMWA_TEXT_COLOR = 36;                  // Windows 11
-
-    /// <summary>
-    /// Color the native title bar to match the theme. Windows 11 gets the exact theme colors;
-    /// Windows 10 gets the system dark or light title bar. Older Windows ignores the calls.
-    /// </summary>
-    private void ApplyTitleBar()
+    private void SystemEvents_UserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return; // not created yet; SourceInitialized calls again
-
-        int dark = _theme.IsDark ? 1 : 0;
-        if (DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int)) != 0)
-            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD, ref dark, sizeof(int));
-
-        int caption = ToColorRef(_theme.ColorOf("WindowBg"));
-        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, ref caption, sizeof(int));
-        int text = ToColorRef(_theme.ColorOf("Fg"));
-        DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, ref text, sizeof(int));
+        // Windows theme changed: follow it in Auto mode.
+        if (e.Category != UserPreferenceCategory.General) return;
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (_themeMode == "Auto") ApplyTheme(Theme.ForMode("Auto"));
+        });
     }
 
-    private static int ToColorRef(Color c) => c.R | (c.G << 8) | (c.B << 16); // 0x00BBGGRR
+    private void CapMin_Click(object sender, RoutedEventArgs e) => SystemCommands.MinimizeWindow(this);
+
+    private void CapMax_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(this);
+        else SystemCommands.MaximizeWindow(this);
+    }
+
+    private void CapClose_Click(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);
+
+    private void Window_StateChanged(object? sender, EventArgs e)
+    {
+        bool max = WindowState == WindowState.Maximized;
+        CapMax.Content = max ? "\uE923" : "\uE922";   // restore / maximize glyphs
+        CapMax.ToolTip = max ? "Restore" : "Maximize";
+        // A maximized custom-chrome window hangs past the screen edge by the resize border; pad it back in.
+        var b = SystemParameters.WindowResizeBorderThickness;
+        RootPanel.Margin = max ? new Thickness(b.Left + 3, b.Top + 3, b.Right + 3, b.Bottom + 3) : new Thickness(0);
+        BorderThickness = max ? new Thickness(0) : new Thickness(1);
+    }
+
+    private void CapHelp_Click(object sender, RoutedEventArgs e) => OpenHelp();
+
+    private void Help_Executed(object sender, ExecutedRoutedEventArgs e) => OpenHelp();
+
+    /// <summary>Opens help\TheRevitMatrix_Help.html (copied next to the exe) in the default browser.</summary>
+    private void OpenHelp()
+    {
+        string path = System.IO.Path.Combine(AppContext.BaseDirectory, "help", "TheRevitMatrix_Help.html");
+        if (!File.Exists(path))
+        {
+            SetStatus($"Help file not found: {path}");
+            return;
+        }
+        OpenExternal(path);
+    }
+
+    private void Link_RequestNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        OpenExternal(e.Uri.AbsoluteUri);
+        e.Handled = true;
+    }
+
+    private void OpenExternal(string target)
+    {
+        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); }
+        catch (Exception ex) { SetStatus($"Could not open {target}: {ex.Message}"); }
+    }
 
     // ---------------------------------------------------------------- status bar
 
@@ -213,13 +245,14 @@ public partial class MainWindow : Window
 
     private void ThemeButton_Click(object sender, RoutedEventArgs e)
     {
-        ApplyTheme(_theme == Theme.Dark ? Theme.Light : Theme.Dark);
+        _themeMode = _themeMode switch { "Auto" => "Dark", "Dark" => "Light", _ => "Auto" };
+        ApplyTheme(Theme.ForMode(_themeMode));
         SaveSettings();
     }
 
     private void SaveSettings()
     {
-        _settings.Theme = _theme.Name;
+        _settings.ThemeMode = _themeMode;
         _settings.ShowLineNumbers = _margin.ShowNumbers;
         _settings.ShowTimestamps = _margin.ShowTimes;
         _settings.HiddenCategories = _hidden.Select(k => k.ToString()).OrderBy(s => s).ToList();
@@ -405,6 +438,7 @@ public partial class MainWindow : Window
             _watchedPid = pid;
             _processEnded = false;
             Title = $"The Revit Matrix — {System.IO.Path.GetFileName(path)}";
+            TitleInfo.Text = System.IO.Path.GetFileName(path) + (pid is int tp ? $"  ·  Revit PID {tp}" : "");
             SetStatus($"Streaming {path}" + (pid is int p ? $"  (PID {p})" : ""));
             _loadingExisting = true;
             try { Poll(); } finally { _loadingExisting = false; }

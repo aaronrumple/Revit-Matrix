@@ -2,12 +2,80 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
-        Title="The Revit Matrix" Height="760" Width="1150"
+        Title="The Revit Matrix" Height="760" Width="1150" MinWidth="760" MinHeight="420"
+        Icon="Assets/TheRevitMatrix.ico"
+        FontFamily="Segoe UI" FontSize="12"
         Background="{DynamicResource WindowBg}" Foreground="{DynamicResource Fg}"
-        SourceInitialized="Window_SourceInitialized"
+        BorderBrush="{DynamicResource Border}" BorderThickness="1"
+        StateChanged="Window_StateChanged"
         Loaded="Window_Loaded" Closing="Window_Closing">
 
+    <!-- PyPiPie custom title bar: the app draws its own caption, following the theme -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="34" ResizeBorderThickness="6" GlassFrameThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <!-- F1 = Help -->
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Help" Executed="Help_Executed"/>
+    </Window.CommandBindings>
+
     <Window.Resources>
+        <!-- ===== Title bar caption buttons (PyPiPie) ===== -->
+        <Style x:Key="Caption" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CaptionHoverBg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CaptionClose" TargetType="Button" BasedOn="{StaticResource Caption}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Credit link in the status bar -->
+        <Style x:Key="CreditLinkStyle" TargetType="Hyperlink">
+            <Setter Property="Foreground" Value="{DynamicResource StatusFg}"/>
+            <Setter Property="TextDecorations" Value="{x:Null}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="TextDecorations" Value="Underline"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Plain push buttons -->
         <Style TargetType="Button">
             <Setter Property="Margin" Value="4,0,0,0"/>
@@ -292,12 +360,34 @@
         </Style>
     </Window.Resources>
 
-    <DockPanel>
+    <DockPanel x:Name="RootPanel">
+        <!-- ================= Title bar ================= -->
+        <Border DockPanel.Dock="Top" Height="34" Background="{DynamicResource HeaderBg}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <Image Source="Assets/TheRevitMatrix.png" Width="20" Height="20" Margin="0,0,8,0"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="The Revit Matrix" FontWeight="SemiBold" FontSize="13"
+                               Foreground="{DynamicResource Fg}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock x:Name="TitleInfo" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="190,0,190,0"
+                           FontStyle="Italic" FontSize="13" Foreground="{DynamicResource MutedFg}"
+                           TextTrimming="CharacterEllipsis"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource Caption}" Content="&#xE897;" ToolTip="Help (F1)" Click="CapHelp_Click"/>
+                    <Button Style="{StaticResource Caption}" Content="&#xE921;" ToolTip="Minimize" Click="CapMin_Click"/>
+                    <Button x:Name="CapMax" Style="{StaticResource Caption}" Content="&#xE922;" ToolTip="Maximize" Click="CapMax_Click"/>
+                    <Button Style="{StaticResource CaptionClose}" Content="&#xE8BB;" ToolTip="Close" Click="CapClose_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Session picker -->
         <DockPanel DockPanel.Dock="Top" Margin="8,8,8,4">
             <TextBlock Text="Revit session:" Margin="0,0,6,0"/>
-            <Button x:Name="ThemeButton" DockPanel.Dock="Right" Content="Light theme" Click="ThemeButton_Click"
-                    ToolTip="Switch between dark and light themes"/>
+            <Button x:Name="ThemeButton" DockPanel.Dock="Right" Content="Theme: Auto" Click="ThemeButton_Click"
+                    ToolTip="Auto follows the Windows theme (as Revit does when it follows the system theme). Click to cycle Auto / Dark / Light."/>
             <Button DockPanel.Dock="Right" Content="Open journal file…" Click="Browse_Click"/>
             <Button DockPanel.Dock="Right" Content="Refresh" Click="Refresh_Click"/>
             <ComboBox x:Name="SessionCombo" SelectionChanged="SessionCombo_SelectionChanged"/>
@@ -346,12 +436,22 @@
 
         <!-- Status bar -->
         <!-- Background is animated from code to show state: idle / live / activity / warning / error / paused / ended -->
-        <Border x:Name="StatusBar" DockPanel.Dock="Bottom" Padding="8,3">
+        <!-- PyPiPie status bar: credit | hint/status ........ state | version -->
+        <Border x:Name="StatusBar" DockPanel.Dock="Bottom" Padding="10,4">
             <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Foreground="{DynamicResource StatusFg}" Opacity="0.85" Margin="0,0,10,0">
+                    <Run Text="Crafted by: "/><Hyperlink NavigateUri="https://www.linkedin.com/in/aaronrumple/"
+                        RequestNavigate="Link_RequestNavigate" ToolTip="Aaron Rumple on LinkedIn"
+                        Style="{StaticResource CreditLinkStyle}" FontWeight="SemiBold">Aaron Rumple, AIA</Hyperlink>
+                </TextBlock>
+                <Border DockPanel.Dock="Left" Width="1" Margin="0,2,10,2" Background="{DynamicResource StatusFg}" Opacity="0.4"/>
+                <TextBlock x:Name="VersionText" DockPanel.Dock="Right" Margin="10,0,0,0"
+                           Foreground="{DynamicResource StatusFg}" Opacity="0.85"/>
+                <Border DockPanel.Dock="Right" Width="1" Margin="10,2,0,2" Background="{DynamicResource StatusFg}" Opacity="0.4"/>
                 <TextBlock x:Name="StatusState" DockPanel.Dock="Right" Margin="12,0,0,0"
                            Foreground="{DynamicResource StatusFg}" FontWeight="SemiBold" Text="IDLE"/>
-                <TextBlock x:Name="StatusText" Foreground="{DynamicResource StatusFg}" Text="Ready"
-                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="StatusText" Foreground="{DynamicResource StatusFg}" TextTrimming="CharacterEllipsis"
+                           Text="Click a category to show or hide it; right-click to show only that one. F1 for help."/>
             </DockPanel>
         </Border>
 

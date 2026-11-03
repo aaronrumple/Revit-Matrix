@@ -32,6 +32,7 @@ public sealed class Theme
         // look up these system keys dynamically; overriding them here themes those bits too.
         resources[SystemColors.ControlBrushKey] = Ui["ScrollTrack"];
         resources[SystemColors.WindowBrushKey] = Ui["OutputBg"];
+        resources[SystemColors.HighlightBrushKey] = Ui["SelectionBg"];
     }
 
     private static Brush B(string hex)
@@ -46,41 +47,45 @@ public sealed class Theme
         Name = "Dark",
         Ui = new()
         {
-            ["WindowBg"] = B("#1E1E1E"),
-            ["PanelBg"] = B("#252526"),
-            ["Fg"] = B("#DDDDDD"),
-            ["MutedFg"] = B("#9A9A9A"),
-            ["OutputBg"] = B("#0C0C0C"),
-            ["OutputFg"] = B("#CCCCCC"),
-            ["InputBg"] = B("#3C3C3C"),
-            ["InputFg"] = B("#EEEEEE"),
-            ["InputBorder"] = B("#555555"),
-            ["ButtonBg"] = B("#3A3D41"),
-            ["ButtonHoverBg"] = B("#4A4E54"),
-            ["ButtonFg"] = B("#EEEEEE"),
-            ["ButtonBorder"] = B("#555555"),
-            ["ChipBg"] = B("#2D2D30"),
-            ["ChipBorder"] = B("#4A4A4A"),
-            ["Accent"] = B("#0E8CE8"),
-            ["StatusBg"] = B("#007ACC"),
+            // Window chrome: PyPiPie / Rover palette (matches Revit's dark UI)
+            ["WindowBg"] = B("#22262B"),
+            ["HeaderBg"] = B("#1B1E22"),
+            ["PanelBg"] = B("#2A2E34"),
+            ["Border"] = B("#434A53"),
+            ["Fg"] = B("#E5E8EB"),
+            ["MutedFg"] = B("#A9B2BC"),
+            ["Link"] = B("#73B7FF"),
+            ["OutputBg"] = B("#1A1D21"),
+            ["OutputFg"] = B("#D4D8DC"),
+            ["InputBg"] = B("#1E2125"),
+            ["InputFg"] = B("#E5E8EB"),
+            ["InputBorder"] = B("#434A53"),
+            ["ButtonBg"] = B("#33383F"),
+            ["ButtonHoverBg"] = B("#3B4148"),
+            ["ButtonFg"] = B("#E5E8EB"),
+            ["ButtonBorder"] = B("#434A53"),
+            ["CaptionHoverBg"] = B("#33383F"),
+            ["ChipBg"] = B("#2A2E34"),
+            ["ChipBorder"] = B("#434A53"),
+            ["Accent"] = B("#4EA1F3"),
             ["StatusFg"] = B("#FFFFFF"),
-            ["SelectionBg"] = B("#264F78"),
-            ["ItemHoverBg"] = B("#2A2D2E"),
-            ["ScrollTrack"] = B("#171717"),
-            ["ScrollThumb"] = B("#424242"),
-            ["ScrollThumbHover"] = B("#686868"),
+            ["SelectionBg"] = B("#22466B"),
+            ["ItemHoverBg"] = B("#3B4148"),
+            ["ScrollTrack"] = B("#1E2125"),
+            ["ScrollThumb"] = B("#434A53"),
+            ["ScrollThumbHover"] = B("#5E6873"),
             // Status bar states
-            ["StatusIdle"] = B("#3C3C3C"),
-            ["StatusLive"] = B("#007ACC"),
+            ["StatusIdle"] = B("#3A4048"),
+            ["StatusLive"] = B("#1F6FB8"),
             ["StatusActivity"] = B("#16825D"),
             ["StatusWarning"] = B("#A86F00"),
             ["StatusError"] = B("#C42B1C"),
             ["StatusPaused"] = B("#68449E"),
-            ["StatusEnded"] = B("#4D4D4D"),
+            ["StatusEnded"] = B("#4A5059"),
         },
         Palette = new()
         {
-            [JKind.Default] = new(B("#CCCCCC")),
+            [JKind.Default] = new(B("#D4D8DC")),
             [JKind.Header] = new(B("#C586C0"), Bold: true),
             [JKind.Command] = new(B("#FFD866"), Bold: true),
             [JKind.Action] = new(B("#9CDCFE")),
@@ -104,37 +109,41 @@ public sealed class Theme
         Name = "Light",
         Ui = new()
         {
-            ["WindowBg"] = B("#F3F3F3"),
-            ["PanelBg"] = B("#E8E8E8"),
-            ["Fg"] = B("#1E1E1E"),
-            ["MutedFg"] = B("#6E6E6E"),
+            // Window chrome: PyPiPie / Rover palette (matches Revit's light UI)
+            ["WindowBg"] = B("#ECEEF1"),
+            ["HeaderBg"] = B("#DDE1E6"),
+            ["PanelBg"] = B("#F3F4F6"),
+            ["Border"] = B("#C6CCD4"),
+            ["Fg"] = B("#1C2025"),
+            ["MutedFg"] = B("#4E5763"),
+            ["Link"] = B("#0B5CB8"),
             ["OutputBg"] = B("#FFFFFF"),
-            ["OutputFg"] = B("#222222"),
+            ["OutputFg"] = B("#1C2025"),
             ["InputBg"] = B("#FFFFFF"),
-            ["InputFg"] = B("#1E1E1E"),
-            ["InputBorder"] = B("#B5B5B5"),
-            ["ButtonBg"] = B("#FDFDFD"),
-            ["ButtonHoverBg"] = B("#E5F1FB"),
-            ["ButtonFg"] = B("#1E1E1E"),
-            ["ButtonBorder"] = B("#B5B5B5"),
+            ["InputFg"] = B("#1C2025"),
+            ["InputBorder"] = B("#C6CCD4"),
+            ["ButtonBg"] = B("#F3F4F6"),
+            ["ButtonHoverBg"] = B("#E6EEF8"),
+            ["ButtonFg"] = B("#1C2025"),
+            ["ButtonBorder"] = B("#C6CCD4"),
+            ["CaptionHoverBg"] = B("#C9CFD6"),
             ["ChipBg"] = B("#FFFFFF"),
-            ["ChipBorder"] = B("#C8C8C8"),
-            ["Accent"] = B("#0067C0"),
-            ["StatusBg"] = B("#0067C0"),
+            ["ChipBorder"] = B("#C6CCD4"),
+            ["Accent"] = B("#0B63C4"),
             ["StatusFg"] = B("#FFFFFF"),
-            ["SelectionBg"] = B("#ADD6FF"),
-            ["ItemHoverBg"] = B("#E5F1FB"),
-            ["ScrollTrack"] = B("#F0F0F0"),
-            ["ScrollThumb"] = B("#C1C1C1"),
-            ["ScrollThumbHover"] = B("#9E9E9E"),
+            ["SelectionBg"] = B("#CFE3FA"),
+            ["ItemHoverBg"] = B("#E6EEF8"),
+            ["ScrollTrack"] = B("#ECEEF1"),
+            ["ScrollThumb"] = B("#C6CCD4"),
+            ["ScrollThumbHover"] = B("#A3ACB7"),
             // Status bar states
-            ["StatusIdle"] = B("#8A8A8A"),
-            ["StatusLive"] = B("#0067C0"),
+            ["StatusIdle"] = B("#6B737D"),
+            ["StatusLive"] = B("#0B63C4"),
             ["StatusActivity"] = B("#107C10"),
             ["StatusWarning"] = B("#B86E00"),
             ["StatusError"] = B("#C42B1C"),
             ["StatusPaused"] = B("#6B4FBB"),
-            ["StatusEnded"] = B("#6E6E6E"),
+            ["StatusEnded"] = B("#6B737D"),
         },
         Palette = new()
         {
@@ -159,4 +168,28 @@ public sealed class Theme
 
     public static Theme ByName(string? name) =>
         string.Equals(name, Light.Name, StringComparison.OrdinalIgnoreCase) ? Light : Dark;
+
+    /// <summary>
+    /// The theme for a mode: "Dark", "Light", or "Auto". Auto follows the Windows app theme,
+    /// which is what Revit 2024+ uses when its "follow the system theme" option is on.
+    /// (Revit's own theme can only be read from inside Revit.)
+    /// </summary>
+    public static Theme ForMode(string? mode) =>
+        string.Equals(mode, "Auto", StringComparison.OrdinalIgnoreCase)
+            ? (WindowsUsesLightTheme() ? Light : Dark)
+            : ByName(mode);
+
+    public static bool WindowsUsesLightTheme()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is not int v || v != 0;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

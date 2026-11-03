@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Revit Matrix - MSI package (WiX Toolset v5).
+  Built by `npm run package` (see package.json), which publishes the app to build\publish
+  and passes Version and PublishDir in as preprocessor variables.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!-- UpgradeCode identifies the product across versions: never change it. -->
+  <Package Name="The Revit Matrix"
+           Manufacturer="Aaron Rumple, AIA"
+           Version="$(var.Version)"
+           UpgradeCode="{DED4CB40-13F5-43CB-9746-D27538CFF68A}"
+           Scope="perMachine"
+           Compressed="yes">
+
+    <SummaryInformation Description="The Revit Matrix $(var.Version) - streams a running Revit session's journal file live."
+                        Manufacturer="Aaron Rumple, AIA" />
+
+    <!-- Installing a newer version replaces the old one; an older one is refused. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Apps & Features entry -->
+    <Icon Id="AppIcon" SourceFile="..\Assets\TheRevitMatrix.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPCONTACT" Value="Aaron Rumple, AIA" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/aaronrumple/Revit-Matrix" />
+    <Property Id="ARPURLINFOABOUT" Value="https://www.linkedin.com/in/aaronrumple/" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/aaronrumple/Revit-Matrix/releases" />
+
+    <!-- C:\Program Files\PyPiPie\The Revit Matrix -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="PyPiPieFolder" Name="PyPiPie">
+        <Directory Id="INSTALLFOLDER" Name="The Revit Matrix" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Start menu > PyPiPie > The Revit Matrix -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="PyPiPie" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="The Revit Matrix" Level="1">
+      <!-- Everything `dotnet publish` produced: the exe and the help folder -->
+      <Files Directory="INSTALLFOLDER" Include="$(var.PublishDir)**" />
+
+      <Component Id="LicenseFile" Directory="INSTALLFOLDER">
+        <File Id="LicenseTxt" Source="..\LICENSE" Name="LICENSE.txt" />
+      </Component>
+
+      <Component Id="StartMenuShortcut" Directory="AppMenuFolder">
+        <Shortcut Id="AppShortcut"
+                  Name="The Revit Matrix"
+                  Description="Watch a running Revit session's journal file, live."
+                  Target="[INSTALLFOLDER]TheRevitMatrix.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <Shortcut Id="HelpShortcut"
+                  Name="The Revit Matrix Help"
+                  Target="[INSTALLFOLDER]help\TheRevitMatrix_Help.html" />
+        <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\PyPiPie\The Revit Matrix"
+                       Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </Feature>
+
+    <!-- Installer UI: welcome, license, install folder, progress, finish -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="WixUIDialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="WixUIBanner.bmp" />
+  </Package>
+</Wix>

@@ -1,0 +1,19 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!--
+    MSI for The Revit Matrix. Normally run through `npm run package`, which publishes the app first.
+    By hand:
+      dotnet publish ..\TheRevitMatrix.csproj -c Release -r win-x64 -o ..\build\publish ...
+      dotnet build TheRevitMatrix.Installer.wixproj -c Release -p:Version=1.0.0
+  -->
+  <PropertyGroup>
+    <Version Condition="'$(Version)' == ''">1.0.0</Version>
+    <AppPublishDir Condition="'$(AppPublishDir)' == ''">$(MSBuildThisFileDirectory)..\build\publish\</AppPublishDir>
+    <OutputName>TheRevitMatrix-$(Version)-x64</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>Version=$(Version);PublishDir=$(AppPublishDir)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>

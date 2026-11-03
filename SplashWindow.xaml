@@ -1,0 +1,39 @@
+<Window x:Class="RevitJournalViewer.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="The Revit Matrix" Width="600" Height="448"
+        WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterScreen" ShowInTaskbar="False" Topmost="True"
+        Icon="Assets/TheRevitMatrix.ico" FontFamily="Segoe UI">
+
+    <!-- PyPiPie splash: the app artwork with a credit / status / version band -->
+    <Grid>
+        <Grid.Clip>
+            <RectangleGeometry Rect="0,0,600,448" RadiusX="10" RadiusY="10"/>
+        </Grid.Clip>
+
+        <Image Source="Assets/Splash.jpg" Stretch="UniformToFill"
+               RenderOptions.BitmapScalingMode="HighQuality"/>
+
+        <Border VerticalAlignment="Bottom" Padding="16,26,16,10">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#00000000" Offset="0"/>
+                    <GradientStop Color="#E6000000" Offset="0.6"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Foreground="#B9F5CC" FontSize="12">
+                    <Run Text="Crafted by: "/><Run Text="Aaron Rumple, AIA" FontWeight="SemiBold" Foreground="#FFFFFF"/>
+                </TextBlock>
+                <TextBlock x:Name="VersionText" DockPanel.Dock="Right" Foreground="#B9F5CC" FontSize="12"/>
+                <TextBlock x:Name="StatusText" Text="Starting…" Foreground="#7CF0A0" FontSize="12"
+                           FontStyle="Italic" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Margin="12,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- thin glowing rim -->
+        <Border BorderBrush="#5539D96B" BorderThickness="1" CornerRadius="10"/>
+    </Grid>
+</Window>

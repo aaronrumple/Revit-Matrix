@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>TheRevitMatrix</AssemblyName>
+    <RootNamespace>RevitJournalViewer</RootNamespace>
+    <!-- Lets you also build from a non-Windows box; harmless on Windows -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+
+    <!-- PyPiPie branding -->
+    <ApplicationIcon>Assets\TheRevitMatrix.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>The Revit Matrix</Product>
+    <AssemblyTitle>The Revit Matrix</AssemblyTitle>
+    <Description>Watches a running Revit session and streams its journal file live.</Description>
+    <Authors>Aaron Rumple, AIA</Authors>
+    <Company>PyPiPie</Company>
+    <Copyright>© 2026 Aaron Rumple, AIA. Licensed under GPL-3.0.</Copyright>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/aaronrumple/Revit-Matrix</RepositoryUrl>
+
+    <!-- Keep packaging folders out of the app build -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);build/**;installer/**;node_modules/**;scripts/**</DefaultItemExcludes>
+    <!-- No .pdb in Release output, so it isn't packed into the MSI -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Fast, virtualized text view with per-line coloring -->
+    <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Title-bar logo and window icon, compiled into the exe -->
+    <Resource Include="Assets\TheRevitMatrix.png" />
+    <Resource Include="Assets\TheRevitMatrix.ico" />
+    <!-- Splash screen artwork -->
+    <Resource Include="Assets\Splash.jpg" />
+    <!-- Help (F1) is copied next to the exe -->
+    <None Include="help\TheRevitMatrix_Help.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\PyPiPie_Logo.png" />
+  </ItemGroup>
+
+</Project>

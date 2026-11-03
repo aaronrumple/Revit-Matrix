@@ -3,10 +3,12 @@ using System.Text.Json;
 
 namespace RevitJournalViewer;
 
-/// <summary>Theme and category-filter choices, saved to %APPDATA%\RevitJournalViewer\settings.json.</summary>
+/// <summary>Theme and category-filter choices, saved to %APPDATA%\TheRevitMatrix\settings.json.</summary>
 public sealed class AppSettings
 {
-    public string Theme { get; set; } = "Dark";
+    /// <summary>"Auto" (follow the Windows/Revit theme), "Dark" or "Light".
+    /// Older settings files only have the obsolete "Theme" value, so they start on Auto.</summary>
+    public string ThemeMode { get; set; } = "Auto";
     public bool ShowLineNumbers { get; set; } = true;
     public bool ShowTimestamps { get; set; } = true;
 

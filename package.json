@@ -1,0 +1,50 @@
+{
+  "name": "revit-matrix",
+  "productName": "The Revit Matrix",
+  "version": "1.0.0",
+  "description": "Watches a running Revit session and streams its journal file live, with colors, filters, line numbers and timestamps.",
+  "private": true,
+  "author": {
+    "name": "Aaron Rumple, AIA",
+    "url": "https://www.linkedin.com/in/aaronrumple/"
+  },
+  "license": "GPL-3.0-only",
+  "homepage": "https://github.com/aaronrumple/Revit-Matrix#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aaronrumple/Revit-Matrix.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aaronrumple/Revit-Matrix/issues"
+  },
+  "keywords": [
+    "revit",
+    "journal",
+    "autodesk",
+    "bim",
+    "pypipie"
+  ],
+  "os": [
+    "win32"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "msi": {
+    "project": "TheRevitMatrix.csproj",
+    "installer": "installer/TheRevitMatrix.Installer.wixproj",
+    "runtime": "win-x64",
+    "selfContained": true,
+    "publishDir": "build/publish",
+    "outputDir": "build/msi",
+    "upgradeCode": "{DED4CB40-13F5-43CB-9746-D27538CFF68A}",
+    "installFolder": "C:\\Program Files\\PyPiPie\\The Revit Matrix"
+  },
+  "scripts": {
+    "start": "dotnet run --project TheRevitMatrix.csproj",
+    "clean": "node scripts/build.mjs clean",
+    "publish": "node scripts/build.mjs publish",
+    "msi": "node scripts/build.mjs msi",
+    "package": "node scripts/build.mjs package"
+  }
+}
