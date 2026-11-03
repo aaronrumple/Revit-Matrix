@@ -58,12 +58,17 @@ The version comes from `package.json`; bump it with `npm version patch` (or `min
 
 ### Publish a release
 
-Push a version tag and GitHub Actions builds the MSI on Windows and publishes it to the Releases page, with its SHA-256 checksum and the notes in `.github/RELEASE_TEMPLATE.md`:
+GitHub Actions builds the MSI on Windows and adds it to the release, with its SHA-256 checksum and the notes in `.github/RELEASE_TEMPLATE.md`. Either:
 
-```
-git tag v1.0.1
-git push origin v1.0.1
-```
+- On GitHub, **Releases › Draft a new release**, type a new tag such as `v1.0.1`, and **Publish release**; or
+- push a version tag:
+
+  ```
+  git tag v1.0.1
+  git push origin v1.0.1
+  ```
+
+The installer appears on the release a few minutes later.
 
 The tag sets the version, so `package.json` doesn't have to be bumped first. To build an MSI without releasing it, run **Actions › Release MSI › Run workflow**; the MSI is attached to the run.
 
