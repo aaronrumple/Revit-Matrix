@@ -14,7 +14,7 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 
 | Area | What it does |
 |---|---|
-| **Sessions** | Lists every running `Revit.exe` and matches each to its own journal, so several sessions or versions can run at once. Attaches to the newest automatically, and to another session if the watched Revit closes. **Open journal file…** opens any journal, including old ones. |
+| **Sessions** | Lists every running `Revit.exe` and matches each to its own journal, so several sessions or versions can run at once. Each session gets its own **tab** with its own log, timeline, analysis, bookmarks and performance graphs; background tabs keep reading, turn bold on new lines and show an error count. **Open journal file…** opens any journal, including old ones, in a tab. |
 | **Output** | Journal text colored by kind: commands, replay actions, quoted values, timestamps, comments, `API_SUCCESS`, warnings, errors, memory stats. |
 | **Line # and Time** | A gutter with each line's number in the journal file and its time as `HH:mm:ss::hh`. Bright times are the line's own timestamp; dim times are carried from the last timestamped line. |
 | **Category filters** | One chip per category with a live line count. Click to show or hide, right-click to show only that category. Presets: **All**, **Problems**, **Activity**. |
@@ -26,7 +26,7 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Journal folders** | Size of every Revit version's journal folder; moves journals older than N days to the Recycle Bin. |
 | **Errors & bookmarks** | **F8** / **Shift+F8** jump between errors and warnings; **Ctrl+B** bookmarks a line, **F9** / **Shift+F9** move between bookmarks. |
 | **Notifications** | While the app is in the background, a Windows notification for errors and for long opens, saves and syncs. |
-| **Performance panel** | Click the chart button in the title bar (or press **F2**) to slide out live graphs of the watched Revit session's CPU, memory, GPU and GPU memory over the last 5 minutes, with current values and peaks. |
+| **Performance panel** | Click the chart button in the title bar (or press **F2**) to slide out live graphs of the selected tab's Revit CPU, memory, GPU and GPU memory over the last 5 minutes, with current values and peaks. |
 | **Status bar** | Changes color with the session: idle, live, new activity, warning, error, paused (with a count of new lines), ended. |
 | **Tools** | Auto-scroll that stops when you scroll up, Pause/Resume, Clear, Save (with the line-number and time columns). |
 | **Help** | Press **F1** or click **?** in the title bar for the full guide (`help/TheRevitMatrix_Help.html`). |
@@ -126,7 +126,8 @@ AppxManifest.xml              MSIX package manifest (Store identity, logos, full
 installer/                    WiX v5 MSI: Package.wxs, .wixproj, license and installer artwork
 App.xaml(.cs)                 application entry: splash screen, then the main window
 SplashWindow.xaml(.cs)        splash screen (Assets/Splash.jpg)
-MainWindow.xaml(.cs)          window: title bar, toolbar, filters, output, status bar
+MainWindow.xaml(.cs)          window: title bar, session tabs, toolbar, filters, output, status bar
+SessionTab.cs                 one tab's journal reader, lines, analysis, bookmarks and performance history
 RevitSessionFinder.cs         running Revit processes -> their journal files
 ProcessMonitor.cs             samples Revit's CPU, memory and GPU once a second
 PerfChart.cs                  running graph used in the performance panel

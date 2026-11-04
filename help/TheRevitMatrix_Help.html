@@ -109,7 +109,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
   <p>The title bar shows the journal being watched and the Revit process ID. The <b>?</b> button beside minimize opens this help (or press <kbd>F1</kbd>).</p>
   <table>
     <tr><th>Row</th><th>What it holds</th></tr>
-    <tr><td>Revit session</td><td>The session picker, <b>Refresh</b>, <b>Open journal file&hellip;</b> and the <b>Theme</b> button.</td></tr>
+    <tr><td>Session tabs</td><td>A tab for each Revit session and opened journal, then <b>Refresh</b>, <b>Open journal file&hellip;</b> and the <b>Theme</b> button.</td></tr>
     <tr><td>Filter</td><td>A text filter, then options: <b>Load existing</b>, <b>Line #</b>, <b>Time</b>, <b>Colors</b>, <b>Auto-scroll</b>, and the <b>Pause</b>, <b>Clear</b> and <b>Save&hellip;</b> buttons.</td></tr>
     <tr><td>Show</td><td>The category chips and the <b>All</b>, <b>Problems</b> and <b>Activity</b> presets.</td></tr>
     <tr><td>Output</td><td>The journal, with the line-number and time gutter on the left.</td></tr>
@@ -121,10 +121,14 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
   <h2>Sessions &amp; journals</h2>
   <p>Every 3 seconds the app lists the running <code>Revit.exe</code> processes and matches each one to the journal it created when it started, in <code>%LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit 20XX\Journals</code>. Several sessions, of the same or different Revit versions, each get their own journal.</p>
   <ul>
-    <li><b>Automatic:</b> on launch it attaches to the newest session. If the watched Revit closes, it marks the end in the output and moves to another running session.</li>
-    <li><b>Pick a session:</b> choose any session in the drop-down. Each entry shows the Revit version, process ID, start time and open model.</li>
-    <li><b>Open journal file&hellip;:</b> open any journal, including one from an earlier session or a redirected journal folder.</li>
-    <li><b>Load existing:</b> when on, attaching shows the last 2&nbsp;MB of the journal first; when off, only new lines appear.</li>
+    <li><b>A tab per session:</b> each running Revit gets its own tab, named by version and open model (for example <i>Revit 2026 &middot; Tower.rvt</i>). A new Revit gets a tab as soon as it starts. Hover a tab for its process ID, start time and journal path.</li>
+    <li><b>Everything per tab:</b> each tab keeps its own log, category counts, timeline, slow operations, add-in report, summary, bookmarks and performance graphs. Switching tabs is instant.</li>
+    <li><b>Background tabs keep reading:</b> a tab that isn't in front still reads its journal. Its name turns bold when it has new lines, and a red number shows how many errors it has logged. Notifications for errors and long opens, saves and syncs come from background tabs too, even while the app is in front.</li>
+    <li><b>Tab dot:</b> green while that Revit is running, gray after it closes (the tab stays so you can read the end of the journal), blue for a journal opened from a file.</li>
+    <li><b>Closing tabs:</b> click <b>&times;</b> on a tab or middle-click it. A closed session's tab doesn't come back on its own; <b>Refresh</b> reopens tabs for every running session.</li>
+    <li><b>Open journal file&hellip;:</b> opens any journal in its own tab, including one from an earlier session or a redirected journal folder. Opening a journal that already has a tab switches to it.</li>
+    <li><b>Clear</b> empties only the tab in front.</li>
+    <li><b>Load existing:</b> when on, a new tab shows the last 2&nbsp;MB of the journal first; when off, only new lines appear.</li>
   </ul>
   <div class="note">Sessions are matched by start time. If a journal is created at almost the same moment as another Revit launch, it can be matched to the wrong session; use <b>Open journal file&hellip;</b> to pick it directly.</div>
 </section>
@@ -186,7 +190,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
     <tr><td>Amber</td><td>WARNING</td><td>A warning just arrived (3&nbsp;s).</td></tr>
     <tr><td>Red</td><td>ERROR</td><td>An error just arrived (4&nbsp;s). Routine activity can't cover it.</td></tr>
     <tr><td>Purple</td><td>PAUSED</td><td>Output paused, with a count of new lines waiting.</td></tr>
-    <tr><td>Dark gray</td><td>ENDED</td><td>The watched Revit closed.</td></tr>
+    <tr><td>Dark gray</td><td>ENDED</td><td>The Revit in this tab closed.</td></tr>
   </table>
   <p>The backlog loaded when you attach doesn't count as activity, so opening a journal full of old errors won't turn the bar red.</p>
 </section>
@@ -252,7 +256,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
 
 <section id="performance">
   <h2>Performance panel</h2>
-  <p>Click the chart button in the title bar, beside <b>?</b>, or press <kbd>F2</kbd> to slide out the performance panel on the right. It graphs the watched Revit session, sampled every second, over the last 5 minutes:</p>
+  <p>Click the chart button in the title bar, beside <b>?</b>, or press <kbd>F2</kbd> to slide out the performance panel on the right. It graphs the Revit session in the selected tab, sampled every second, over the last 5 minutes (each tab keeps its own history, so switching tabs shows that session's graphs at once):</p>
   <table>
     <tr><th>Graph</th><th>What it shows</th></tr>
     <tr><td><span class="sw" style="background:#4EA1F3"></span>CPU</td><td>Revit's share of all the PC's logical processors, as Task Manager shows it. Much of Revit runs on one core, so on an 8-core PC a busy single-threaded task reads about 12%.</td></tr>
