@@ -798,10 +798,34 @@
                         </StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*" MinWidth="220"/>
+                                <ColumnDefinition x:Name="FoldersColumn" Width="2*" MinWidth="160"/>
                                 <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="3*" MinWidth="320"/>
+                                <ColumnDefinition x:Name="FilesColumn" Width="3*" MinWidth="240"/>
                             </Grid.ColumnDefinitions>
+
+                            <!-- Drag to resize the two lists -->
+                            <GridSplitter x:Name="FoldersSplitter" Grid.Column="1" Width="10" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Cursor="SizeWE" Focusable="False"
+                                          DragCompleted="FoldersSplitter_DragCompleted" MouseDoubleClick="FoldersSplitter_DoubleClick"
+                                          ToolTip="Drag to resize the lists. Double-click to reset.">
+                                <GridSplitter.Template>
+                                    <ControlTemplate TargetType="GridSplitter">
+                                        <Border x:Name="Hit" Background="Transparent">
+                                            <Border x:Name="Line" Width="1" HorizontalAlignment="Center" Background="{DynamicResource Border}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Line" Property="Width" Value="3"/>
+                                                <Setter TargetName="Line" Property="Background" Value="{DynamicResource Accent}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsDragging" Value="True">
+                                                <Setter TargetName="Line" Property="Width" Value="3"/>
+                                                <Setter TargetName="Line" Property="Background" Value="{DynamicResource Accent}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </GridSplitter.Template>
+                            </GridSplitter>
 
                             <!-- Folders, one per Revit version -->
                             <DockPanel>

@@ -253,6 +253,7 @@ public partial class MainWindow : Window
 
         NotifyCheck.IsChecked = _settings.Notify;
         _margin.Bookmarks = _bookmarks;
+        SetFoldersSplit(_settings.FoldersSplit);
         SelectFlyoutTab(_settings.FlyoutTab is "timeline" or "slow" or "addins" or "summary" or "folders" ? _settings.FlyoutTab : "timeline");
         SetTimelineOpen(_settings.ShowTimeline, animate: false);
     }
@@ -654,6 +655,35 @@ public partial class MainWindow : Window
 
     private bool _refreshingFolders;
 
+    /// <summary>Set the splitter between the folder and journal lists: <paramref name="share"/> of the width for folders.</summary>
+    private void SetFoldersSplit(double share)
+    {
+        share = double.IsFinite(share) ? Math.Clamp(share, 0.1, 0.9) : 0.4;
+        FoldersColumn.Width = new GridLength(share, GridUnitType.Star);
+        FilesColumn.Width = new GridLength(1 - share, GridUnitType.Star);
+    }
+
+    private double FoldersSplitShare()
+    {
+        double left = FoldersColumn.ActualWidth, right = FilesColumn.ActualWidth;
+        if (left + right > 0) return left / (left + right);
+        // not laid out yet (tab never shown): keep the stored star ratio
+        double l = FoldersColumn.Width.Value, r = FilesColumn.Width.Value;
+        return l + r > 0 ? l / (l + r) : 0.4;
+    }
+
+    private void FoldersSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        SetFoldersSplit(FoldersSplitShare());   // back to star widths so both lists keep their share as the window resizes
+        SaveSettings();
+    }
+
+    private void FoldersSplitter_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        SetFoldersSplit(0.4);
+        SaveSettings();
+    }
+
     private void FolderList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_refreshingFolders) RefreshFiles();
@@ -938,6 +968,7 @@ public partial class MainWindow : Window
         _settings.TimelineWindowSeconds = _timelineWindow;
         _settings.FlyoutTab = _flyoutTab;
         _settings.Notify = NotifyCheck.IsChecked == true;
+        _settings.FoldersSplit = FoldersSplitShare();
         _settings.HiddenCategories = _hidden.Select(k => k.ToString()).OrderBy(s => s).ToList();
         _settings.Save();
     }

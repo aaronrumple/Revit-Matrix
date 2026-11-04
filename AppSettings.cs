@@ -18,6 +18,8 @@ public sealed class AppSettings
     /// <summary>Open tab of the bottom flyout: timeline, slow, addins, summary or folders.</summary>
     public string FlyoutTab { get; set; } = "timeline";
     public bool Notify { get; set; } = true;
+    /// <summary>Journal folders tab: share of the width given to the folder list (the splitter position).</summary>
+    public double FoldersSplit { get; set; } = 0.4;
 
     /// <summary>Categories switched off (by enum name). Memory stats are hidden by default.</summary>
     public List<string> HiddenCategories { get; set; } = new() { nameof(JKind.Stats) };
