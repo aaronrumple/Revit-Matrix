@@ -19,7 +19,7 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Line # and Time** | A gutter with each line's number in the journal file and its time as `HH:mm:ss::hh`. Bright times are the line's own timestamp; dim times are carried from the last timestamped line. |
 | **Category filters** | One chip per category with a live line count. Click to show or hide, right-click to show only that category. Presets: **All**, **Problems**, **Activity**. |
 | **Text filter** | Shows only lines containing the text, combined with the chips. |
-| **Timeline** | Click the timeline button in the title bar (or press **F3**) to slide out a timeline along the bottom: every journal entry as a dot in its category's row, by time. Click a dot to jump to its line. Windows of 1, 5 or 15 minutes or the whole journal, Follow live, and a range slider to zoom. |
+| **Timeline** | Click the timeline button in the title bar (or press **F3**) to slide out a timeline along the bottom: every journal entry as a dot in its category's row, by time. Click a dot to jump to its line. Windows of 1, 5 or 15 minutes or the whole journal, Follow live, and a range slider to zoom. Middle-button drag slides the timeline through time; Ctrl + wheel zooms. |
 | **Slow operations** | Every operation Revit timed (opens, saves, syncs, regenerations, views…), with how long it took; sortable, click to jump to the line. |
 | **Add-in startup** | Which add-ins slowed Revit's startup, slowest first, with the memory each added. |
 | **Session summary** | Files, saves, syncs, commands, errors, warnings, slowest operations and peak memory, as plain text to copy into a support ticket. |

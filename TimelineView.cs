@@ -37,6 +37,11 @@ public sealed class TimelineView : FrameworkElement
     private int _hoverSquare = -1;
     private Point _mouse;
 
+    // Middle-button drag: grab the timeline and slide it through time.
+    private bool _panning;
+    private double _panStartX;
+    private DateTime _panViewStart, _panViewEnd;
+
     /// <summary>File line number of the selected entry (drawn with a ring).</summary>
     public long? SelectedNumber { get; set; }
 
@@ -275,6 +280,15 @@ public sealed class TimelineView : FrameworkElement
         base.OnMouseMove(e);
         _mouse = e.GetPosition(this);
         var plot = PlotRect;
+        if (_panning)
+        {
+            // The entries follow the pointer: drag right to go back in time, left to go forward.
+            double span = (_panViewEnd - _panViewStart).TotalSeconds;
+            double shift = -(_mouse.X - _panStartX) / Math.Max(1, plot.Width - 8) * span;
+            SetView(_panViewStart.AddSeconds(shift), _panViewEnd.AddSeconds(shift));
+            ViewChangedByUser?.Invoke();
+            return;
+        }
         Hit? found = null;
         int square = -1;
         int lane = (int)((_mouse.Y - plot.Top) / LaneHeight);
@@ -301,9 +315,43 @@ public sealed class TimelineView : FrameworkElement
         }
     }
 
+    protected override void OnMouseDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.ChangedButton != MouseButton.Middle || !_hasView) return;
+        _panning = true;
+        _panStartX = e.GetPosition(this).X;
+        _panViewStart = _viewStart;
+        _panViewEnd = _viewEnd;
+        _hover = null;
+        _hoverSquare = -1;
+        Cursor = Cursors.ScrollWE;
+        CaptureMouse();
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
+    protected override void OnMouseUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (e.ChangedButton != MouseButton.Middle || !_panning) return;
+        ReleaseMouseCapture();   // EndPan runs from OnLostMouseCapture
+        e.Handled = true;
+    }
+
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        if (!_panning) return;
+        _panning = false;
+        Cursor = null;
+        InvalidateVisual();
+    }
+
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
+        if (_panning) return;
         if (_hover != null || _hoverSquare >= 0)
         {
             _hover = null;
