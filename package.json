@@ -45,6 +45,7 @@
     "clean": "node scripts/build.mjs clean",
     "publish": "node scripts/build.mjs publish",
     "msi": "node scripts/build.mjs msi",
-    "package": "node scripts/build.mjs package"
+    "package": "node scripts/build.mjs package",
+    "msix": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-msix.ps1"
   }
 }

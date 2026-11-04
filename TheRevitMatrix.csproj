@@ -32,6 +32,8 @@
   <ItemGroup>
     <!-- Fast, virtualized text view with per-line coloring -->
     <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+    <!-- Windows performance counters, for per-process GPU use -->
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.1" />
   </ItemGroup>
 
   <ItemGroup>

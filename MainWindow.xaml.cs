@@ -30,6 +30,13 @@ public partial class MainWindow : Window
     private readonly HashSet<JKind> _hidden = new();
     private readonly JournalColorizer _colorizer = new();
     private readonly AppSettings _settings = AppSettings.Load();
+
+    // Performance flyout
+    private const double PerfPanelWidth = 321;
+    private readonly ProcessMonitor _monitor = new();
+    private readonly List<PerfChart> _perfCharts = new();
+    private PerfChart _cpuChart = null!, _memChart = null!, _gpuChart = null!, _gpuMemChart = null!;
+    private bool _perfOpen;
     private Theme _theme = Theme.Dark;
     private string _themeMode = "Auto";      // Auto follows the Windows (and Revit) theme
 
@@ -55,6 +62,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        BuildPerfCharts();
         StatusBar.Background = _statusBrush;
 
         // Output: read-only log view, no undo history, no clickable links.
@@ -83,6 +91,9 @@ public partial class MainWindow : Window
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         VersionText.Text = App.VersionLabel;
 
+        _monitor.Sampled += s => Dispatcher.InvokeAsync(() => OnPerfSample(s));
+        SetPerfOpen(_settings.ShowPerformance, animate: false);
+
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         _pollTimer.Tick += (_, _) => { Poll(); UpdateStatusBar(); };
 
@@ -105,6 +116,7 @@ public partial class MainWindow : Window
         _pollTimer.Stop();
         _sessionTimer.Stop();
         _tailer?.Dispose();
+        _monitor.Dispose();
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SaveSettings();
     }
@@ -118,6 +130,7 @@ public partial class MainWindow : Window
 
         _colorizer.Theme = theme;
         _margin.Theme = theme;
+        foreach (var chart in _perfCharts) chart.Theme = theme;
         Output.TextArea.SelectionBrush = theme.Ui["SelectionBg"];
         Output.TextArea.SelectionForeground = null;
         Output.TextArea.SelectionBorder = null;
@@ -193,6 +206,110 @@ public partial class MainWindow : Window
         catch (Exception ex) { SetStatus($"Could not open {target}: {ex.Message}"); }
     }
 
+    // ---------------------------------------------------------------- performance flyout
+
+    private static string FormatMB(double mb) =>
+        mb >= 1024 ? $"{mb / 1024:0.0} GB" : $"{mb:0} MB";
+
+    private void BuildPerfCharts()
+    {
+        _cpuChart = new PerfChart
+        {
+            Title = "CPU", ColorKey = "ChartCpu", FixedMax = 100,
+            Subtitle = $"% of all {Environment.ProcessorCount} logical processors",
+            Format = v => $"{v:0}%"
+        };
+        _memChart = new PerfChart
+        {
+            Title = "Memory", ColorKey = "ChartMemory", MinAutoMax = 1024,
+            Subtitle = "committed by Revit (private bytes)",
+            Format = FormatMB
+        };
+        _gpuChart = new PerfChart
+        {
+            Title = "GPU", ColorKey = "ChartGpu", FixedMax = 100,
+            Subtitle = "busiest graphics engine, as in Task Manager",
+            Format = v => $"{v:0}%"
+        };
+        _gpuMemChart = new PerfChart
+        {
+            Title = "GPU memory", ColorKey = "ChartGpuMemory", MinAutoMax = 256,
+            Subtitle = "dedicated video memory used by Revit",
+            Format = FormatMB
+        };
+        foreach (var chart in new[] { _cpuChart, _memChart, _gpuChart, _gpuMemChart })
+        {
+            chart.Margin = new Thickness(0, 0, 0, 16);
+            _perfCharts.Add(chart);
+            PerfCharts.Children.Add(chart);
+        }
+
+        long ram = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+        PerfFooter.Text = $"Sampled every second; the graphs show the last 5 minutes. "
+                        + $"This PC has {FormatMB(ram / 1024.0 / 1024.0)} of RAM.";
+    }
+
+    /// <summary>Start graphing a Revit process (or nothing, for a journal opened from a file).</summary>
+    private void WatchPerformance(int? pid)
+    {
+        foreach (var chart in _perfCharts) chart.Clear();
+        _monitor.Watch(pid);
+        PerfTarget.Text = pid is int p
+            ? $"Revit PID {p}"
+            : "Not watching a running Revit session.";
+    }
+
+    private void OnPerfSample(PerfSample s)
+    {
+        if (s.Pid != _watchedPid || _processEnded) return;   // a late sample from a previous session
+
+        _cpuChart.Push(s.CpuPercent);
+        _memChart.Push(s.PrivateMB);
+        _gpuChart.Push(s.GpuPercent);
+        _gpuMemChart.Push(s.GpuMemoryMB);
+
+        _cpuChart.SetUnavailable(s.CpuPercent == null && s.Note?.Contains("administrator") == true ? s.Note : null);
+        bool gpuMissing = s.GpuPercent == null && s.Note?.Contains("GPU") == true;
+        _gpuChart.SetUnavailable(gpuMissing ? s.Note : null);
+        _gpuMemChart.SetUnavailable(gpuMissing ? "Not available on this PC." : null);
+
+        PerfTarget.Text = s.WorkingSetMB is double ws
+            ? $"Revit PID {s.Pid}  ·  {FormatMB(ws)} in RAM"
+            : $"Revit PID {s.Pid}";
+    }
+
+    private void PerfToggle_Click(object sender, RoutedEventArgs e) => SetPerfOpen(!_perfOpen, animate: true);
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F2)
+        {
+            SetPerfOpen(!_perfOpen, animate: true);
+            e.Handled = true;
+        }
+    }
+
+    private void SetPerfOpen(bool open, bool animate)
+    {
+        _perfOpen = open;
+        double to = open ? PerfPanelWidth : 0;
+        if (animate)
+        {
+            var slide = new DoubleAnimation(to, TimeSpan.FromMilliseconds(220))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            PerfPanel.BeginAnimation(WidthProperty, slide);
+        }
+        else
+        {
+            PerfPanel.BeginAnimation(WidthProperty, null);
+            PerfPanel.Width = to;
+        }
+        CapPerf.SetResourceReference(ForegroundProperty, open ? "Accent" : "Fg");
+        if (IsLoaded) SaveSettings();
+    }
+
     // ---------------------------------------------------------------- status bar
 
     private static int Severity(JKind k) => k switch { JKind.Error => 3, JKind.Warning => 2, _ => 1 };
@@ -255,6 +372,7 @@ public partial class MainWindow : Window
         _settings.ThemeMode = _themeMode;
         _settings.ShowLineNumbers = _margin.ShowNumbers;
         _settings.ShowTimestamps = _margin.ShowTimes;
+        _settings.ShowPerformance = _perfOpen;
         _settings.HiddenCategories = _hidden.Select(k => k.ToString()).OrderBy(s => s).ToList();
         _settings.Save();
     }
@@ -419,6 +537,8 @@ public partial class MainWindow : Window
                 new JournalLine(0, $"{JournalClassifier.MarkerPrefix} Revit session (PID {pid}) ended ========")
             });
             SetStatus($"Revit PID {pid} has exited. Pick another session or open a journal.");
+            _monitor.Watch(null);
+            PerfTarget.Text = $"Revit PID {pid} has exited. The graphs show its last minutes.";
             UpdateStatusBar();
         }
     }
@@ -437,6 +557,7 @@ public partial class MainWindow : Window
             _tailer = new JournalTailer(path, start);
             _watchedPid = pid;
             _processEnded = false;
+            WatchPerformance(pid);
             Title = $"The Revit Matrix — {System.IO.Path.GetFileName(path)}";
             TitleInfo.Text = System.IO.Path.GetFileName(path) + (pid is int tp ? $"  ·  Revit PID {tp}" : "");
             SetStatus($"Streaming {path}" + (pid is int p ? $"  (PID {p})" : ""));

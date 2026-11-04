@@ -79,6 +79,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
     <li><a href="#filters">Category filters</a></li>
     <li><a href="#gutter">Line numbers &amp; time</a></li>
     <li><a href="#status">Status bar</a></li>
+    <li><a href="#performance">Performance panel</a></li>
     <li><a href="#theme">Themes</a></li>
     <li><a href="#keys">Mouse &amp; keyboard</a></li>
     <li><a href="#tips">Tips &amp; troubleshooting</a></li>
@@ -183,6 +184,20 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
   <p>The backlog loaded when you attach doesn't count as activity, so opening a journal full of old errors won't turn the bar red.</p>
 </section>
 
+<section id="performance">
+  <h2>Performance panel</h2>
+  <p>Click the chart button in the title bar, beside <b>?</b>, or press <kbd>F2</kbd> to slide out the performance panel on the right. It graphs the watched Revit session, sampled every second, over the last 5 minutes:</p>
+  <table>
+    <tr><th>Graph</th><th>What it shows</th></tr>
+    <tr><td><span class="sw" style="background:#4EA1F3"></span>CPU</td><td>Revit's share of all the PC's logical processors, as Task Manager shows it. Much of Revit runs on one core, so on an 8-core PC a busy single-threaded task reads about 12%.</td></tr>
+    <tr><td><span class="sw" style="background:#3FC46B"></span>Memory</td><td>Memory Revit has committed (private bytes). The line under the panel title shows how much of it is in RAM right now.</td></tr>
+    <tr><td><span class="sw" style="background:#B98AF5"></span>GPU</td><td>The busiest graphics engine Revit is using, the same figure as Task Manager's GPU column.</td></tr>
+    <tr><td><span class="sw" style="background:#E8A33D"></span>GPU memory</td><td>Dedicated video memory Revit is using.</td></tr>
+  </table>
+  <p>Each graph shows the current value and the peak since the session was attached. Sampling starts when the app attaches to a running session, so the history is there when you open the panel. When Revit closes, the graphs keep its last minutes.</p>
+  <div class="note">GPU figures need Windows 10 version 1709 or later and a WDDM 2 graphics driver; the panel says so when they aren't available. If Revit runs as administrator and this app doesn't, Windows hides Revit's CPU time; run The Revit Matrix as administrator to see it. A journal opened from a file has no running process to graph.</div>
+</section>
+
 <section id="theme">
   <h2>Themes</h2>
   <p>The <b>Theme</b> button cycles <b>Auto</b>, <b>Dark</b> and <b>Light</b>.</p>
@@ -197,6 +212,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
   <table>
     <tr><th>Action</th><th>Result</th></tr>
     <tr><td><kbd>F1</kbd></td><td>Open this help.</td></tr>
+    <tr><td><kbd>F2</kbd></td><td>Show or hide the performance panel.</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Search within the output.</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy the selected text.</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all output.</td></tr>
@@ -221,7 +237,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
 <section id="files">
   <h2>Files &amp; settings</h2>
   <ul>
-    <li>Settings (theme, hidden categories, gutter columns) are saved in <code>%APPDATA%\TheRevitMatrix\settings.json</code>.</li>
+    <li>Settings (theme, hidden categories, gutter columns, performance panel) are saved in <code>%APPDATA%\TheRevitMatrix\settings.json</code>.</li>
     <li>Journals are read from <code>%LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit 20XX\Journals</code>, as Windows-1252 text.</li>
     <li>This help is <code>help\TheRevitMatrix_Help.html</code>, next to the program.</li>
     <li>Installed with the MSI, the program is in <code>C:\Program Files\PyPiPie\The Revit Matrix</code>.</li>
@@ -233,7 +249,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
 
 <div class="wrap">
 <footer>
-  <span>&copy; 2026 <a href="https://www.linkedin.com/in/aaronrumple/">Aaron Rumple, AIA</a> &middot; Updated November 2, 2026</span>
+  <span>&copy; 2026 <a href="https://www.linkedin.com/in/aaronrumple/">Aaron Rumple, AIA</a> &middot; Updated November 3, 2026</span>
   <span>Licensed under the <a href="https://github.com/aaronrumple/Revit-Matrix/blob/main/LICENSE">GNU GPL v3.0</a></span>
   <span>Source: <a href="https://github.com/aaronrumple/Revit-Matrix">github.com/aaronrumple/Revit-Matrix</a></span>
 </footer>

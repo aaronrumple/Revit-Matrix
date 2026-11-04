@@ -7,7 +7,7 @@
         FontFamily="Segoe UI" FontSize="12"
         Background="{DynamicResource WindowBg}" Foreground="{DynamicResource Fg}"
         BorderBrush="{DynamicResource Border}" BorderThickness="1"
-        StateChanged="Window_StateChanged"
+        StateChanged="Window_StateChanged" PreviewKeyDown="Window_PreviewKeyDown"
         Loaded="Window_Loaded" Closing="Window_Closing">
 
     <!-- PyPiPie custom title bar: the app draws its own caption, following the theme -->
@@ -375,6 +375,8 @@
                            FontStyle="Italic" FontSize="13" Foreground="{DynamicResource MutedFg}"
                            TextTrimming="CharacterEllipsis"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="CapPerf" Style="{StaticResource Caption}" Content="&#xE9D9;"
+                            ToolTip="Revit performance: CPU, memory and GPU graphs (F2)" Click="PerfToggle_Click"/>
                     <Button Style="{StaticResource Caption}" Content="&#xE897;" ToolTip="Help (F1)" Click="CapHelp_Click"/>
                     <Button Style="{StaticResource Caption}" Content="&#xE921;" ToolTip="Minimize" Click="CapMin_Click"/>
                     <Button x:Name="CapMax" Style="{StaticResource Caption}" Content="&#xE922;" ToolTip="Maximize" Click="CapMax_Click"/>
@@ -452,6 +454,28 @@
                            Foreground="{DynamicResource StatusFg}" FontWeight="SemiBold" Text="IDLE"/>
                 <TextBlock x:Name="StatusText" Foreground="{DynamicResource StatusFg}" TextTrimming="CharacterEllipsis"
                            Text="Click a category to show or hide it; right-click to show only that one. F1 for help."/>
+            </DockPanel>
+        </Border>
+
+        <!-- ================= Performance flyout (right) ================= -->
+        <!-- Width is animated between 0 and 321 from code; the content keeps a fixed width so it doesn't reflow. -->
+        <Border x:Name="PerfPanel" DockPanel.Dock="Right" Width="0" ClipToBounds="True"
+                Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+            <DockPanel Width="320" HorizontalAlignment="Left">
+                <DockPanel DockPanel.Dock="Top" Margin="14,10,6,6">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Caption}" Width="30" Height="26"
+                            Content="&#xE8BB;" ToolTip="Close (F2)" Click="PerfToggle_Click" VerticalAlignment="Top"/>
+                    <StackPanel>
+                        <TextBlock Text="Revit performance" FontWeight="SemiBold" FontSize="14" Foreground="{DynamicResource Fg}"/>
+                        <TextBlock x:Name="PerfTarget" Foreground="{DynamicResource MutedFg}" TextTrimming="CharacterEllipsis"
+                                   Text="Not watching a running Revit session."/>
+                    </StackPanel>
+                </DockPanel>
+                <TextBlock x:Name="PerfFooter" DockPanel.Dock="Bottom" Margin="14,4,14,10" TextWrapping="Wrap"
+                           FontSize="11" Foreground="{DynamicResource MutedFg}"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="PerfCharts" Margin="14,4,14,4"/>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 

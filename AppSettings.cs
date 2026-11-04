@@ -11,6 +11,7 @@ public sealed class AppSettings
     public string ThemeMode { get; set; } = "Auto";
     public bool ShowLineNumbers { get; set; } = true;
     public bool ShowTimestamps { get; set; } = true;
+    public bool ShowPerformance { get; set; }
 
     /// <summary>Categories switched off (by enum name). Memory stats are hidden by default.</summary>
     public List<string> HiddenCategories { get; set; } = new() { nameof(JKind.Stats) };

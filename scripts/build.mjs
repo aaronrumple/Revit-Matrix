@@ -3,7 +3,7 @@
 //   npm run publish   -> build\publish\TheRevitMatrix.exe (+ help\)
 //   npm run msi       -> build\msi\TheRevitMatrix-<version>-x64.msi (from an existing publish)
 //   npm run package   -> clean + publish + msi
-//   npm run clean     -> delete build\
+//   npm run clean     -> delete build\publish and build\msi (leaves build\msix alone)
 //
 // The version comes from package.json "version" and is stamped into both the exe and the MSI,
 // so bump it there (e.g. `npm version patch`) before packaging a release.
@@ -38,8 +38,10 @@ function dotnet(args) {
 }
 
 function clean() {
-  rmSync(join(root, "build"), { recursive: true, force: true });
-  console.log("Removed build\\");
+  // Only this script's output: the MSIX build (npm run msix) keeps its own folder.
+  rmSync(publishDir, { recursive: true, force: true });
+  rmSync(outputDir, { recursive: true, force: true });
+  console.log(`Removed ${cfg.publishDir} and ${cfg.outputDir}`);
 }
 
 function publish() {

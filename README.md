@@ -19,6 +19,7 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Line # and Time** | A gutter with each line's number in the journal file and its time as `HH:mm:ss::hh`. Bright times are the line's own timestamp; dim times are carried from the last timestamped line. |
 | **Category filters** | One chip per category with a live line count. Click to show or hide, right-click to show only that category. Presets: **All**, **Problems**, **Activity**. |
 | **Text filter** | Shows only lines containing the text, combined with the chips. |
+| **Performance panel** | Click the chart button in the title bar (or press **F2**) to slide out live graphs of the watched Revit session's CPU, memory, GPU and GPU memory over the last 5 minutes, with current values and peaks. |
 | **Status bar** | Changes color with the session: idle, live, new activity, warning, error, paused (with a count of new lines), ended. |
 | **Tools** | Auto-scroll that stops when you scroll up, Pause/Resume, Clear, Save (with the line-number and time columns). |
 | **Help** | Press **F1** or click **?** in the title bar for the full guide (`help/TheRevitMatrix_Help.html`). |
@@ -56,6 +57,15 @@ npm run package
 This publishes a self-contained `TheRevitMatrix.exe` to `build\publish` and builds `build\msi\TheRevitMatrix-<version>-x64.msi`.
 The version comes from `package.json`; bump it with `npm version patch` (or `minor` / `major`) before a release.
 
+| Script | What it does |
+|---|---|
+| `npm start` | Build and run the app |
+| `npm run publish` | Publish the self-contained exe to `build\publish` |
+| `npm run msi` | Build the MSI from the last publish |
+| `npm run package` | Clean, publish and build the MSI |
+| `npm run msix` | Build a signed MSIX package (see below) |
+| `npm run clean` | Delete `build\publish` and `build\msi` |
+
 ### Publish a release
 
 GitHub Actions builds the MSI on Windows and adds it to the release, with its SHA-256 checksum and the notes in `.github/RELEASE_TEMPLATE.md`. Either:
@@ -72,13 +82,19 @@ The installer appears on the release a few minutes later.
 
 The tag sets the version, so `package.json` doesn't have to be bumped first. To build an MSI without releasing it, run **Actions › Release MSI › Run workflow**; the MSI is attached to the run.
 
-| Script | What it does |
-|---|---|
-| `npm start` | Build and run the app |
-| `npm run publish` | Publish the self-contained exe to `build\publish` |
-| `npm run msi` | Build the MSI from the last publish |
-| `npm run package` | Clean, publish and build the MSI |
-| `npm run clean` | Delete `build\` |
+## Build the MSIX package
+
+The MSIX is the package for the Microsoft Store (and for installing signed builds directly). It needs the [Windows SDK](https://developer.microsoft.com/windows/downloads/windows-sdk/) for `makeappx`, `makepri` and `signtool`.
+
+```
+npm run msix
+```
+
+This publishes the app, stages it with `AppxManifest.xml` and the logos in `Assets\Store`, indexes the logos into `resources.pri`, then packs and signs `build\msix\TheRevitMatrix-<version>-x64.msix`. The version comes from `package.json` (as `1.2.3.0`).
+
+- **Signing:** the script uses the certificate in your user store whose subject matches the manifest's `Publisher`, or one you name with `-CertificateThumbprint <thumbprint>` or `-PfxPath <file.pfx>` (for example `npm run msix -- -PfxPath cert.pfx`). If none matches, it prints the command to make a development certificate. A self-signed package installs only after its certificate is added to **Local Computer › Trusted People**.
+- **Microsoft Store:** the Store re-signs packages, so any signature is fine for upload. `Identity Name`, `Publisher` and `PublisherDisplayName` in `AppxManifest.xml` must match **Partner Center › Product identity** exactly.
+- **Settings:** installed from the MSIX, the app keeps its settings in its own private copy of `%APPDATA%\TheRevitMatrix`, separate from an MSI install.
 
 ## How it works
 
@@ -96,6 +112,8 @@ The tag sets the version, so `package.json` doesn't have to be bumped first. To 
 TheRevitMatrix.csproj         project (.NET 8, WPF)
 package.json                  version, metadata and npm scripts for publishing and the MSI
 scripts/build.mjs             publish + MSI build used by the npm scripts
+scripts/build-msix.ps1        publish + MSIX package, PRI and signing (npm run msix)
+AppxManifest.xml              MSIX package manifest (Store identity, logos, full-trust entry point)
 .github/workflows/release.yml builds the MSI on Windows and publishes releases for v* tags
 .github/RELEASE_TEMPLATE.md   release notes (download, unsigned-installer note, checksum)
 installer/                    WiX v5 MSI: Package.wxs, .wixproj, license and installer artwork
@@ -103,6 +121,8 @@ App.xaml(.cs)                 application entry: splash screen, then the main wi
 SplashWindow.xaml(.cs)        splash screen (Assets/Splash.jpg)
 MainWindow.xaml(.cs)          window: title bar, toolbar, filters, output, status bar
 RevitSessionFinder.cs         running Revit processes -> their journal files
+ProcessMonitor.cs             samples Revit's CPU, memory and GPU once a second
+PerfChart.cs                  running graph used in the performance panel
 JournalTailer.cs              reads a journal as Revit writes it, with file line numbers
 JournalClassifier.cs          line categories, colored spans, timestamps
 JournalColorizer.cs           colors the output view
@@ -110,6 +130,7 @@ LineInfoMargin.cs             line-number and time gutter
 Theme.cs                      dark and light palettes, Auto theme detection
 AppSettings.cs                settings in %APPDATA%\TheRevitMatrix\settings.json
 Assets/                       app icon and logo, splash artwork, PyPiPie logo
+Assets/Store/                 MSIX logos at the sizes Windows and the Store ask for
 help/TheRevitMatrix_Help.html user guide (F1)
 ```
 

@@ -82,6 +82,12 @@ public sealed class Theme
             ["StatusError"] = B("#C42B1C"),
             ["StatusPaused"] = B("#68449E"),
             ["StatusEnded"] = B("#4A5059"),
+            // Performance charts
+            ["ChartCpu"] = B("#4EA1F3"),
+            ["ChartMemory"] = B("#3FC46B"),
+            ["ChartGpu"] = B("#B98AF5"),
+            ["ChartGpuMemory"] = B("#E8A33D"),
+            ["ChartGrid"] = B("#30353C"),
         },
         Palette = new()
         {
@@ -144,6 +150,12 @@ public sealed class Theme
             ["StatusError"] = B("#C42B1C"),
             ["StatusPaused"] = B("#6B4FBB"),
             ["StatusEnded"] = B("#6B737D"),
+            // Performance charts
+            ["ChartCpu"] = B("#0B63C4"),
+            ["ChartMemory"] = B("#1E8E3E"),
+            ["ChartGpu"] = B("#7B3FC4"),
+            ["ChartGpuMemory"] = B("#B86E00"),
+            ["ChartGrid"] = B("#E3E6EA"),
         },
         Palette = new()
         {
