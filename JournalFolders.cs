@@ -13,6 +13,22 @@ public sealed record JournalFolderInfo(string Version, string Path, int Files, l
     public string OldText => OldFiles == 0 ? "none" : $"{OldFiles:N0} ({JournalFolders.Size(OldBytes)})";
 }
 
+/// <summary>One journal file in the Journal folders tab.</summary>
+public sealed record JournalFileInfo(string Version, string Path, DateTime Modified, long Bytes, bool Old, string State)
+{
+    public string Name => System.IO.Path.GetFileName(Path);
+    public string SizeText => JournalFolders.Size(Bytes);
+    public string ModifiedText => Modified.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    public string AgeText
+    {
+        get
+        {
+            var age = DateTime.Now - Modified;
+            return age.TotalDays >= 1 ? $"{(int)age.TotalDays:N0} d" : age.TotalHours >= 1 ? $"{(int)age.TotalHours} h" : "now";
+        }
+    }
+}
+
 /// <summary>
 /// Revit never deletes its journals. Lists the journal folders of every installed Revit
 /// version and moves old journals to the Recycle Bin.
@@ -60,29 +76,67 @@ public static class JournalFolders
     }
 
     /// <summary>
-    /// Moves journals last written more than <paramref name="olderThanDays"/> days ago to the
-    /// Recycle Bin. Skips any journal a running Revit still has open, and those in <paramref name="keep"/>.
+    /// Every journal file in the given folders. <paramref name="inRevit"/> and <paramref name="inTabs"/>
+    /// are journals a running Revit or a tab here has open; they're labelled and can't be recycled.
     /// </summary>
-    public static (int Moved, long Bytes, int Skipped) RecycleOld(int olderThanDays, IReadOnlyCollection<string> keep)
+    public static List<JournalFileInfo> ScanFiles(IEnumerable<JournalFolderInfo> folders, int olderThanDays,
+                                                  IReadOnlyCollection<string> inRevit, IReadOnlyCollection<string> inTabs)
     {
         var cutoff = DateTime.Now.AddDays(-olderThanDays);
+        var list = new List<JournalFileInfo>();
+        foreach (var folder in folders)
+        {
+            try
+            {
+                foreach (var f in JournalFiles(folder.Path))
+                {
+                    string state = Contains(inRevit, f.FullName) ? "Revit is using it"
+                                 : Contains(inTabs, f.FullName) ? "Open in a tab" : "";
+                    list.Add(new JournalFileInfo(folder.Version, f.FullName, f.LastWriteTime, f.Length, f.LastWriteTime < cutoff, state));
+                }
+            }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+        return list;
+    }
+
+    private static bool Contains(IReadOnlyCollection<string> paths, string path) =>
+        paths.Any(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Moves the given journals to the Recycle Bin. Skips those in <paramref name="keep"/> and any
+    /// a running Revit still has open.
+    /// </summary>
+    public static (int Moved, long Bytes, int Skipped) RecycleFiles(IEnumerable<string> paths, IReadOnlyCollection<string> keep)
+    {
         var toDelete = new List<FileInfo>();
         int skipped = 0;
-
-        foreach (var info in Scan(olderThanDays))
+        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            foreach (var f in JournalFiles(info.Path).Where(f => f.LastWriteTime < cutoff))
-            {
-                if (keep.Any(k => string.Equals(f.FullName, k, StringComparison.OrdinalIgnoreCase))) { skipped++; continue; }
-                if (InUse(f)) { skipped++; continue; }
-                toDelete.Add(f);
-            }
+            var f = new FileInfo(path);
+            if (!f.Exists) continue;
+            if (Contains(keep, f.FullName) || InUse(f)) { skipped++; continue; }
+            toDelete.Add(f);
         }
         if (toDelete.Count == 0) return (0, 0, skipped);
 
         long bytes = toDelete.Sum(f => f.Length);
         bool ok = SendToRecycleBin(toDelete.Select(f => f.FullName));
         return ok ? (toDelete.Count, bytes, skipped) : (0, 0, skipped + toDelete.Count);
+    }
+
+    /// <summary>
+    /// Moves journals last written more than <paramref name="olderThanDays"/> days ago to the
+    /// Recycle Bin. Skips any journal a running Revit still has open, and those in <paramref name="keep"/>.
+    /// </summary>
+    public static (int Moved, long Bytes, int Skipped) RecycleOld(int olderThanDays, IReadOnlyCollection<string> keep)
+    {
+        var cutoff = DateTime.Now.AddDays(-olderThanDays);
+        var old = new List<string>();
+        foreach (var info in Scan(olderThanDays))
+            old.AddRange(JournalFiles(info.Path).Where(f => f.LastWriteTime < cutoff).Select(f => f.FullName));
+        return RecycleFiles(old, keep);
     }
 
     private static bool InUse(FileInfo f)

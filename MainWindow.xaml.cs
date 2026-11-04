@@ -557,7 +557,9 @@ public partial class MainWindow : Window
     {
         ["Started"] = "Start", ["Seconds"] = "Seconds", ["Kind"] = "Kind", ["Level"] = "Depth",
         ["Operation"] = "Name", ["File"] = "Detail", ["Line"] = "Line",
-        ["Memory added"] = "RamMB", ["Add-ins"] = "NamesText"
+        ["Memory added"] = "RamMB", ["Add-ins"] = "NamesText",
+        ["Journal"] = "Name", ["Revit"] = "Version", ["Modified"] = "Modified", ["Age"] = "Modified",
+        ["Size"] = "Bytes", ["In use"] = "State"
     };
 
     private void List_HeaderClick(object sender, RoutedEventArgs e)
@@ -565,7 +567,7 @@ public partial class MainWindow : Window
         if (sender is not ListView list || e.OriginalSource is not GridViewColumnHeader { Column.Header: string header }) return;
         if (!SortKeys.TryGetValue(header, out var property)) return;
         bool descending = !(_sorts.TryGetValue(list, out var cur) && cur.Property == property && cur.Descending);
-        if (!_sorts.ContainsKey(list) || _sorts[list].Property != property) descending = property is "Seconds" or "RamMB";
+        if (!_sorts.ContainsKey(list) || _sorts[list].Property != property) descending = property is "Seconds" or "RamMB" or "Bytes" or "Modified";
         _sorts[list] = (property, descending);
         ApplySort(list);
     }
@@ -608,8 +610,13 @@ public partial class MainWindow : Window
 
     private void RefreshFolders()
     {
+        var keepSelected = FolderList.SelectedItems.Cast<JournalFolderInfo>().Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var folders = JournalFolders.Scan(Days);
+        _refreshingFolders = true;
         FolderList.ItemsSource = folders;
+        foreach (var f in folders.Where(f => keepSelected.Contains(f.Path))) FolderList.SelectedItems.Add(f);
+        _refreshingFolders = false;
+        RefreshFiles();
         long bytes = folders.Sum(f => f.Bytes);
         int oldFiles = folders.Sum(f => f.OldFiles);
         FoldersOldText.Text = oldFiles == 0 ? "none" : $"{oldFiles:N0} journals, {JournalFolders.Size(folders.Sum(f => f.OldBytes))}";
@@ -643,6 +650,86 @@ public partial class MainWindow : Window
     private void FolderList_DoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (FolderList.SelectedItem is JournalFolderInfo f) OpenExternal(f.Path);
+    }
+
+    private bool _refreshingFolders;
+
+    private void FolderList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_refreshingFolders) RefreshFiles();
+    }
+
+    /// <summary>List the journals of the selected folders (all folders when none is selected).</summary>
+    private void RefreshFiles()
+    {
+        var all = FolderList.ItemsSource as IEnumerable<JournalFolderInfo> ?? Enumerable.Empty<JournalFolderInfo>();
+        var chosen = FolderList.SelectedItems.Cast<JournalFolderInfo>().ToList();
+        var folders = chosen.Count > 0 ? chosen : all.ToList();
+
+        var inRevit = RevitSessionFinder.FindSessions().Where(s => s.JournalPath != null).Select(s => s.JournalPath!).ToList();
+        var inTabs = _tabs.Select(t => t.Path).ToList();
+        var keepSelected = FileList.SelectedItems.Cast<JournalFileInfo>().Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var files = JournalFolders.ScanFiles(folders, Days, inRevit, inTabs);
+        FileList.ItemsSource = files;
+        if (!_sorts.ContainsKey(FileList)) _sorts[FileList] = ("Modified", true);
+        ApplySort(FileList);
+        foreach (var f in files.Where(f => keepSelected.Contains(f.Path))) FileList.SelectedItems.Add(f);
+        UpdateFilesInfo();
+    }
+
+    private void UpdateFilesInfo()
+    {
+        var files = FileList.ItemsSource as IEnumerable<JournalFileInfo> ?? Enumerable.Empty<JournalFileInfo>();
+        var selected = FileList.SelectedItems.Cast<JournalFileInfo>().ToList();
+        int listed = files.Count();
+        string scope = FolderList.SelectedItems.Count == 0 ? "all folders" : FolderList.SelectedItems.Count == 1 ? "1 folder" : $"{FolderList.SelectedItems.Count} folders";
+        FilesInfo.Text = selected.Count > 0
+            ? $"{selected.Count:N0} of {listed:N0} selected, {JournalFolders.Size(selected.Sum(f => f.Bytes))}"
+            : $"{listed:N0} journals in {scope}. Ctrl+click or Shift+click to select several.";
+        RecycleSelectedButton.IsEnabled = selected.Any(f => f.State.Length == 0);
+    }
+
+    private void FileList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateFilesInfo();
+
+    private void SelectOld_Click(object sender, RoutedEventArgs e)
+    {
+        FileList.SelectedItems.Clear();
+        foreach (var f in (FileList.ItemsSource as IEnumerable<JournalFileInfo> ?? Enumerable.Empty<JournalFileInfo>()).Where(f => f.Old && f.State.Length == 0))
+            FileList.SelectedItems.Add(f);
+        FileList.Focus();
+    }
+
+    private void FileList_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Delete && RecycleSelectedButton.IsEnabled) { RecycleSelected_Click(sender, e); e.Handled = true; }
+        else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { FileList.SelectAll(); e.Handled = true; }
+    }
+
+    private void FileList_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (FileList.SelectedItem is not JournalFileInfo f) return;
+        var open = _tabs.FirstOrDefault(t => string.Equals(t.Path, f.Path, StringComparison.OrdinalIgnoreCase));
+        if (open != null) SelectTab(open);
+        else OpenTab(f.Path, null, select: true);
+    }
+
+    private void RecycleSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = FileList.SelectedItems.Cast<JournalFileInfo>().ToList();
+        var allowed = selected.Where(f => f.State.Length == 0).ToList();
+        if (allowed.Count == 0) return;
+        string what = allowed.Count == 1 ? allowed[0].Name : $"{allowed.Count:N0} journals";
+        string kept = selected.Count > allowed.Count ? $"\n\n{selected.Count - allowed.Count} selected journal(s) in use will be kept." : "";
+        var answer = MessageBox.Show(this,
+            $"Move {what} ({JournalFolders.Size(allowed.Sum(f => f.Bytes))}) to the Recycle Bin?{kept}",
+            "The Revit Matrix", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK) return;
+
+        var (moved, bytes, skipped) = JournalFolders.RecycleFiles(allowed.Select(f => f.Path), _tabs.Select(t => t.Path).ToList());
+        skipped += selected.Count - allowed.Count;
+        SetStatus($"Moved {moved:N0} journal{(moved == 1 ? "" : "s")} ({JournalFolders.Size(bytes)}) to the Recycle Bin" + (skipped > 0 ? $"; kept {skipped} in use." : "."));
+        RefreshFolders();
     }
 
     // ---------------------------------------------------------------- performance flyout

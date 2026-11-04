@@ -791,24 +791,64 @@
                                      TextChanged="DaysBox_TextChanged" ToolTip="Age in days, by the date each journal was last written"/>
                             <TextBlock Text="days:"/>
                             <TextBlock x:Name="FoldersOldText" Margin="6,0,10,0" FontWeight="SemiBold"/>
-                            <Button x:Name="RecycleButton" Content="Move to Recycle Bin" Margin="0" Click="Recycle_Click"
-                                    ToolTip="Move the old journals to the Recycle Bin. Journals a running Revit has open are skipped."/>
+                            <Button x:Name="RecycleButton" Content="Move old to Recycle Bin" Margin="0" Click="Recycle_Click"
+                                    ToolTip="Move every journal older than this to the Recycle Bin. Journals a running Revit or a tab here has open are kept."/>
                             <Button Content="Refresh" Click="FoldersRefresh_Click"/>
                             <TextBlock x:Name="FoldersTotal" Margin="12,0,0,0" Foreground="{DynamicResource MutedFg}"/>
                         </StackPanel>
-                        <ListView x:Name="FolderList" SelectionMode="Single" MouseDoubleClick="FolderList_DoubleClick"
-                                  ToolTip="Double-click a folder to open it in File Explorer">
-                            <ListView.View>
-                                <GridView>
-                                    <GridViewColumn Header="Revit" Width="150" DisplayMemberBinding="{Binding Version}"/>
-                                    <GridViewColumn Header="Journals" Width="80" DisplayMemberBinding="{Binding FilesText}"/>
-                                    <GridViewColumn Header="Size" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
-                                    <GridViewColumn Header="Oldest" Width="96" DisplayMemberBinding="{Binding OldestText}"/>
-                                    <GridViewColumn Header="Old enough to clear" Width="150" DisplayMemberBinding="{Binding OldText}"/>
-                                    <GridViewColumn Header="Folder" Width="560" DisplayMemberBinding="{Binding Path}"/>
-                                </GridView>
-                            </ListView.View>
-                        </ListView>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" MinWidth="220"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="3*" MinWidth="320"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Folders, one per Revit version -->
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,4" Foreground="{DynamicResource MutedFg}" TextTrimming="CharacterEllipsis"
+                                           Text="Select folders to list their journals. Double-click to open in File Explorer."/>
+                                <ListView x:Name="FolderList" SelectionMode="Extended" MouseDoubleClick="FolderList_DoubleClick"
+                                          SelectionChanged="FolderList_SelectionChanged">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Revit" Width="110" DisplayMemberBinding="{Binding Version}"/>
+                                            <GridViewColumn Header="Journals" Width="66" DisplayMemberBinding="{Binding FilesText}"/>
+                                            <GridViewColumn Header="Size" Width="70" DisplayMemberBinding="{Binding SizeText}"/>
+                                            <GridViewColumn Header="Oldest" Width="84" DisplayMemberBinding="{Binding OldestText}"/>
+                                            <GridViewColumn Header="Old enough to clear" Width="130" DisplayMemberBinding="{Binding OldText}"/>
+                                            <GridViewColumn Header="Folder" Width="480" DisplayMemberBinding="{Binding Path}"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </DockPanel>
+
+                            <!-- Journal files: pick one or more to recycle -->
+                            <DockPanel Grid.Column="2">
+                                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                                    <Button x:Name="RecycleSelectedButton" DockPanel.Dock="Right" Content="Move selected to Recycle Bin" Margin="4,0,0,0"
+                                            Click="RecycleSelected_Click" IsEnabled="False"
+                                            ToolTip="Move the selected journals to the Recycle Bin (Delete key). Journals a running Revit or a tab here has open are kept."/>
+                                    <Button DockPanel.Dock="Right" Content="Select old" Click="SelectOld_Click"
+                                            ToolTip="Select every listed journal older than the days above"/>
+                                    <TextBlock x:Name="FilesInfo" Foreground="{DynamicResource MutedFg}" TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                                <ListView x:Name="FileList" SelectionMode="Extended" SelectionChanged="FileList_SelectionChanged"
+                                          MouseDoubleClick="FileList_DoubleClick" KeyDown="FileList_KeyDown"
+                                          GridViewColumnHeader.Click="List_HeaderClick"
+                                          ToolTip="Click, Ctrl+click or Shift+click to select journals. Double-click to open one in a tab.">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Journal" Width="130" DisplayMemberBinding="{Binding Name}"/>
+                                            <GridViewColumn Header="Revit" Width="96" DisplayMemberBinding="{Binding Version}"/>
+                                            <GridViewColumn Header="Modified" Width="116" DisplayMemberBinding="{Binding ModifiedText}"/>
+                                            <GridViewColumn Header="Age" Width="56" DisplayMemberBinding="{Binding AgeText}"/>
+                                            <GridViewColumn Header="Size" Width="70" DisplayMemberBinding="{Binding SizeText}"/>
+                                            <GridViewColumn Header="In use" Width="130" DisplayMemberBinding="{Binding State}"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </DockPanel>
+                        </Grid>
                     </DockPanel>
                 </Grid>
             </DockPanel>

@@ -237,7 +237,15 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
 
 <section id="folders">
   <h2>Journal folders</h2>
-  <p>Revit never deletes its journals. This tab lists the journal folder of every Revit version on the PC with how many journals it holds, their size and the oldest. Enter an age in days to see how many journals are older, then <b>Move to Recycle Bin</b> to clear them. Journals a running Revit has open, and the one shown in the log, are always kept, and anything moved can be restored from the Recycle Bin. Double-click a folder to open it in File Explorer.</p>
+  <p>Revit never deletes its journals. This tab lists the journal folder of every Revit version on the PC (left) and the journal files in them (right). Anything moved can be restored from the Recycle Bin.</p>
+  <ul>
+    <li><b>Folders:</b> how many journals each folder holds, their size, the oldest, and how many are older than the days you enter. Select one or more folders (<kbd>Ctrl</kbd>/<kbd>Shift</kbd>+click) to list only their journals; with none selected, every folder's journals are listed. Double-click a folder to open it in File Explorer.</li>
+    <li><b>Pick journals:</b> click a journal, or <kbd>Ctrl</kbd>+click and <kbd>Shift</kbd>+click to select several (<kbd>Ctrl</kbd>+<kbd>A</kbd> selects all). <b>Select old</b> selects every listed journal older than the days entered. Click a column header to sort.</li>
+    <li><b>Move selected to Recycle Bin</b> (or the <kbd>Delete</kbd> key) moves just the selected journals, after you confirm.</li>
+    <li><b>Move old to Recycle Bin</b> moves every journal older than the days entered, in all folders.</li>
+    <li><b>In use:</b> journals a running Revit has open, or that are open in a tab here, are marked and always kept.</li>
+    <li>Double-click a journal to open it in a tab.</li>
+  </ul>
 </section>
 
 <section id="navigate">
