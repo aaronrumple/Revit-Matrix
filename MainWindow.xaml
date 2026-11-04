@@ -263,6 +263,60 @@
             </Setter>
         </Style>
 
+        <!-- Session tabs -->
+        <Style x:Key="SessionTabStyle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            <Setter Property="Background" Value="{DynamicResource ChipBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ChipBorder}"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Padding" Value="9,3,4,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TabCloseStyle" TargetType="Button">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedFg}"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="8"/>
+            <Setter Property="Content" Value="&#xE8BB;"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E81123"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Window-length buttons in the timeline header -->
         <Style x:Key="Seg" TargetType="ToggleButton">
             <Setter Property="Foreground" Value="{DynamicResource MutedFg}"/>
@@ -520,14 +574,19 @@
             </Grid>
         </Border>
 
-        <!-- Session picker -->
-        <DockPanel DockPanel.Dock="Top" Margin="8,8,8,4">
-            <TextBlock Text="Revit session:" Margin="0,0,6,0"/>
+        <!-- Session tabs: one per running Revit session, plus journals opened from a file -->
+        <DockPanel DockPanel.Dock="Top" Margin="8,6,8,4">
             <Button x:Name="ThemeButton" DockPanel.Dock="Right" Content="Theme: Auto" Click="ThemeButton_Click"
                     ToolTip="Auto follows the Windows theme (as Revit does when it follows the system theme). Click to cycle Auto / Dark / Light."/>
-            <Button DockPanel.Dock="Right" Content="Open journal file…" Click="Browse_Click"/>
-            <Button DockPanel.Dock="Right" Content="Refresh" Click="Refresh_Click"/>
-            <ComboBox x:Name="SessionCombo" SelectionChanged="SessionCombo_SelectionChanged"/>
+            <Button DockPanel.Dock="Right" Content="Open journal file…" Click="Browse_Click"
+                    ToolTip="Open any journal, such as one from an earlier session, in a new tab"/>
+            <Button DockPanel.Dock="Right" Content="Refresh" Click="Refresh_Click"
+                    ToolTip="Look for Revit sessions now, and bring back any session tab you closed"/>
+            <TextBlock x:Name="NoSessionsText" DockPanel.Dock="Left" Foreground="{DynamicResource MutedFg}" Margin="2,0,0,0"
+                       Text="No running Revit found yet. Sessions appear here as tabs when Revit starts."/>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel x:Name="SessionTabs" Orientation="Horizontal"/>
+            </ScrollViewer>
         </DockPanel>
 
         <!-- Toolbar -->

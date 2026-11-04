@@ -61,9 +61,9 @@ public static class JournalFolders
 
     /// <summary>
     /// Moves journals last written more than <paramref name="olderThanDays"/> days ago to the
-    /// Recycle Bin. Skips any journal a running Revit still has open, and <paramref name="keep"/>.
+    /// Recycle Bin. Skips any journal a running Revit still has open, and those in <paramref name="keep"/>.
     /// </summary>
-    public static (int Moved, long Bytes, int Skipped) RecycleOld(int olderThanDays, string? keep)
+    public static (int Moved, long Bytes, int Skipped) RecycleOld(int olderThanDays, IReadOnlyCollection<string> keep)
     {
         var cutoff = DateTime.Now.AddDays(-olderThanDays);
         var toDelete = new List<FileInfo>();
@@ -73,7 +73,7 @@ public static class JournalFolders
         {
             foreach (var f in JournalFiles(info.Path).Where(f => f.LastWriteTime < cutoff))
             {
-                if (keep != null && string.Equals(f.FullName, keep, StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
+                if (keep.Any(k => string.Equals(f.FullName, k, StringComparison.OrdinalIgnoreCase))) { skipped++; continue; }
                 if (InUse(f)) { skipped++; continue; }
                 toDelete.Add(f);
             }

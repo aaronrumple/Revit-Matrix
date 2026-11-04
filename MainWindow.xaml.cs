@@ -24,8 +24,6 @@ public partial class MainWindow : Window
 
     private readonly DispatcherTimer _pollTimer;
     private readonly DispatcherTimer _sessionTimer;
-    private readonly List<JLine> _allLines = new();
-    private readonly Dictionary<JKind, int> _counts = new();
     private readonly Dictionary<JKind, Chip> _chips = new();
     private readonly HashSet<JKind> _hidden = new();
     private readonly JournalColorizer _colorizer = new();
@@ -33,7 +31,6 @@ public partial class MainWindow : Window
 
     // Performance flyout
     private const double PerfPanelWidth = 321;
-    private readonly ProcessMonitor _monitor = new();
     private readonly List<PerfChart> _perfCharts = new();
     private PerfChart _cpuChart = null!, _memChart = null!, _gpuChart = null!, _gpuMemChart = null!, _revitMemChart = null!;
     private bool _perfOpen;
@@ -42,11 +39,8 @@ public partial class MainWindow : Window
     private const double TimelinePanelHeight = 301;
 
     // Bottom flyout tabs, journal analysis, bookmarks, notifications
-    private readonly JournalAnalysis _analysis = new();
     private string _flyoutTab = "timeline";
     private int _analysisShown = -1;          // _analysis.Version last put on screen
-    private string? _journalPath;
-    private readonly HashSet<long> _bookmarks = new();
     private Notifier? _notifier;
     private DateTime _lastErrorNotice = DateTime.MinValue;
     private readonly Dictionary<ListView, (string Property, bool Descending)> _sorts = new();
@@ -62,12 +56,25 @@ public partial class MainWindow : Window
     // Lines currently in the output document; document line N == _shown[N-1].
     private readonly List<JLine> _shown = new();
     private readonly LineInfoMargin _margin;
-    private DateTime? _lastJournalTime;      // last 'C/'E/'H timestamp seen, carried to later lines
 
-    private JournalTailer? _tailer;
-    private int? _watchedPid;
-    private bool _processEnded;
-    private bool _suppressSelection;
+    // ---- Session tabs. Each tab keeps its own lines, counts, analysis, bookmarks and performance
+    // history; these properties are the tab in front (or empty stand-ins when there is none).
+    private readonly List<SessionTab> _tabs = new();
+    private SessionTab? _cur;
+    private readonly HashSet<int> _dismissedPids = new();   // live sessions whose tab was closed
+    private readonly List<JLine> _noLines = new();
+    private readonly Dictionary<JKind, int> _noCounts = new();
+    private readonly JournalAnalysis _noAnalysis = new();
+    private readonly HashSet<long> _noBookmarks = new();
+
+    private List<JLine> _allLines => _cur?.Lines ?? _noLines;
+    private Dictionary<JKind, int> _counts => _cur?.Counts ?? _noCounts;
+    private JournalAnalysis _analysis => _cur?.Analysis ?? _noAnalysis;
+    private HashSet<long> _bookmarks => _cur?.Bookmarks ?? _noBookmarks;
+    private string? _journalPath => _cur?.Path;
+    private JournalTailer? _tailer => _cur?.Tailer;
+    private int? _watchedPid => _cur?.Pid;
+    private bool _processEnded => _cur?.Ended ?? false;
 
     // Status bar state
     private readonly SolidColorBrush _statusBrush = new(Colors.Gray); // animated, so not frozen
@@ -76,7 +83,6 @@ public partial class MainWindow : Window
     private DateTime _flashUntil;
     private DateTime? _lastActivity;
     private int _pausedNew;
-    private bool _loadingExisting;           // don't flash for the backlog loaded on attach
 
     public MainWindow()
     {
@@ -110,7 +116,6 @@ public partial class MainWindow : Window
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
         VersionText.Text = App.VersionLabel;
 
-        _monitor.Sampled += s => Dispatcher.InvokeAsync(() => OnPerfSample(s));
         SetPerfOpen(_settings.ShowPerformance, animate: false);
         InitTimeline();
 
@@ -124,14 +129,14 @@ public partial class MainWindow : Window
 
         // Periodically re-scan so newly launched Revit sessions show up.
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        _sessionTimer.Tick += (_, _) => { CheckProcessAlive(); RefreshSessions(autoAttach: true); };
+        _sessionTimer.Tick += (_, _) => { CheckProcessAlive(); RefreshSessions(); };
     }
 
     // ---------------------------------------------------------------- lifecycle
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        RefreshSessions(autoAttach: true);
+        RefreshSessions();
         _pollTimer.Start();
         _sessionTimer.Start();
     }
@@ -140,8 +145,7 @@ public partial class MainWindow : Window
     {
         _pollTimer.Stop();
         _sessionTimer.Stop();
-        _tailer?.Dispose();
-        _monitor.Dispose();
+        foreach (var tab in _tabs) tab.Dispose();
         _notifier?.Dispose();
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SaveSettings();
@@ -375,6 +379,7 @@ public partial class MainWindow : Window
         }
 
         SelectShownLine(index);
+        if (_cur != null) _cur.SelectedNumber = line.Number;
         SetStatus($"Jumped to {where} ({label}{(line.Time is DateTime t ? ", " + JournalClassifier.FormatTime(t) : "")}).");
     }
 
@@ -438,19 +443,21 @@ public partial class MainWindow : Window
     }
 
     /// <summary>While the app is in the background: notify on errors and on long opens, saves and syncs.</summary>
-    private void MaybeNotify(JLine line, SlowOp? op)
+    private void MaybeNotify(SessionTab tab, JLine line, SlowOp? op)
     {
-        if (IsActive || NotifyCheck.IsChecked != true) return;
+        // Only when nobody is looking at this session: the app is in the background, or the tab isn't in front.
+        if (NotifyCheck.IsChecked != true || (IsActive && tab == _cur)) return;
+        string who = _tabs.Count > 1 ? tab.Title + ": " : "";
         if (line.Category == JKind.Error && DateTime.Now - _lastErrorNotice > TimeSpan.FromSeconds(30))
         {
             _lastErrorNotice = DateTime.Now;
-            (_notifier ??= new Notifier(this)).Show("Revit logged an error", line.Text.Trim().TrimStart('\'', ' '));
+            (_notifier ??= new Notifier(this)).Show(who + "Revit logged an error", line.Text.Trim().TrimStart('\'', ' '));
         }
         else if (op is { Depth: 1, Seconds: >= 10 } && op.Kind is "Open" or "Save" or "Sync")
         {
             string what = op.Kind == "Sync" ? "Sync with central" : op.Kind;
             string file = op.Detail.Length > 0 ? System.IO.Path.GetFileName(op.Detail) : op.Name;
-            (_notifier ??= new Notifier(this)).Show($"{what} finished in {op.Seconds:0.0} s", file);
+            (_notifier ??= new Notifier(this)).Show($"{who}{what} finished in {op.Seconds:0.0} s", file);
         }
     }
 
@@ -624,11 +631,11 @@ public partial class MainWindow : Window
         if (n == 0) return;
         var answer = MessageBox.Show(this,
             $"Move {n:N0} journals older than {Days} days ({JournalFolders.Size(folders.Sum(f => f.OldBytes))}) to the Recycle Bin?\n\n"
-            + "Journals a running Revit has open, and the one shown here, are kept.",
+            + "Journals a running Revit has open, and those open in a tab here, are kept.",
             "The Revit Matrix", MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (answer != MessageBoxResult.OK) return;
 
-        var (moved, bytes, skipped) = JournalFolders.RecycleOld(Days, _tailer?.Path);
+        var (moved, bytes, skipped) = JournalFolders.RecycleOld(Days, _tabs.Select(t => t.Path).ToList());
         SetStatus($"Moved {moved:N0} journals ({JournalFolders.Size(bytes)}) to the Recycle Bin" + (skipped > 0 ? $"; kept {skipped} in use." : "."));
         RefreshFolders();
     }
@@ -687,25 +694,21 @@ public partial class MainWindow : Window
                         + $"This PC has {FormatMB(ram / 1024.0 / 1024.0)} of RAM.";
     }
 
-    /// <summary>Start graphing a Revit process (or nothing, for a journal opened from a file).</summary>
-    private void WatchPerformance(int? pid)
+    /// <summary>A sample from one tab's monitor: keep it with the tab; show it if that tab is in front.</summary>
+    private void OnPerfSample(SessionTab tab, PerfSample s)
     {
-        foreach (var chart in _perfCharts) chart.Clear();
-        _monitor.Watch(pid);
-        PerfTarget.Text = pid is int p
-            ? $"Revit PID {p}"
-            : "Not watching a running Revit session.";
+        if (tab.Ended || !_tabs.Contains(tab)) return;   // a late sample from a closed or ended session
+        tab.AddSample(s);
+        if (tab == _cur) ShowSample(s, tab.Analysis.RevitRamMB);
     }
 
-    private void OnPerfSample(PerfSample s)
+    private void ShowSample(PerfSample s, int? revitRam)
     {
-        if (s.Pid != _watchedPid || _processEnded) return;   // a late sample from a previous session
-
         _cpuChart.Push(s.CpuPercent);
         _memChart.Push(s.PrivateMB);
+        _revitMemChart.Push(revitRam);
         _gpuChart.Push(s.GpuPercent);
         _gpuMemChart.Push(s.GpuMemoryMB);
-        _revitMemChart.Push(_analysis.RevitRamMB);
 
         _cpuChart.SetUnavailable(s.CpuPercent == null && s.Note?.Contains("administrator") == true ? s.Note : null);
         bool gpuMissing = s.GpuPercent == null && s.Note?.Contains("GPU") == true;
@@ -715,6 +718,17 @@ public partial class MainWindow : Window
         PerfTarget.Text = s.WorkingSetMB is double ws
             ? $"Revit PID {s.Pid}  ·  {FormatMB(ws)} in RAM"
             : $"Revit PID {s.Pid}";
+    }
+
+    /// <summary>Redraw the graphs from the tab's stored history (on switching tabs).</summary>
+    private void ShowPerformanceOf(SessionTab? tab)
+    {
+        foreach (var chart in _perfCharts) chart.Clear();
+        if (tab == null) { PerfTarget.Text = "Not watching a running Revit session."; return; }
+        foreach (var (sample, ram) in tab.Samples) ShowSample(sample, ram);
+        if (tab.Pid == null) PerfTarget.Text = "A journal opened from a file has no running Revit to graph.";
+        else if (tab.Ended) PerfTarget.Text = $"Revit PID {tab.Pid} has exited. The graphs show its last minutes.";
+        else if (tab.Samples.Count == 0) PerfTarget.Text = $"Revit PID {tab.Pid}";
     }
 
     private void PerfToggle_Click(object sender, RoutedEventArgs e) => SetPerfOpen(!_perfOpen, animate: true);
@@ -918,52 +932,33 @@ public partial class MainWindow : Window
             chip.Count.Text = _counts.TryGetValue(kind, out int n) ? n.ToString("N0") : "0";
     }
 
-    // ---------------------------------------------------------------- sessions
+    // ---------------------------------------------------------------- session tabs
 
-    private void RefreshSessions(bool autoAttach)
+    /// <summary>Open a tab for every running Revit session that doesn't have one; keep tab titles current.</summary>
+    private void RefreshSessions()
     {
         var sessions = RevitSessionFinder.FindSessions();
-
-        bool idle = _tailer == null || _processEnded;
-        if (sessions.Count == 0 && _tailer == null)
+        foreach (var s in sessions)
+        {
+            var tab = _tabs.FirstOrDefault(t => t.Pid == s.ProcessId);
+            if (tab != null)
+            {
+                if (s.Model != null && s.Model != tab.Model) { tab.Model = s.Model; UpdateTabButton(tab); if (tab == _cur) UpdateTitle(); }
+                continue;
+            }
+            if (s.JournalPath == null || _dismissedPids.Contains(s.ProcessId)) continue;
+            OpenTab(s.JournalPath, s, select: _cur == null);
+        }
+        NoSessionsText.Visibility = _tabs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        if (_tabs.Count == 0)
             SetStatus($"No running Revit found. Waiting… (journals: {RevitSessionFinder.JournalRoot})");
-
-        var current = SessionCombo.SelectedItem as RevitSession;
-        string Key(RevitSession s) => $"{s.ProcessId}|{s.JournalPath}";
-        var oldKeys = SessionCombo.Items.OfType<RevitSession>().Select(Key);
-        if (oldKeys.SequenceEqual(sessions.Select(Key)))
-            return; // nothing changed – avoid flicker
-
-        _suppressSelection = true;
-        SessionCombo.ItemsSource = sessions;
-        SessionCombo.SelectedItem = current == null
-            ? null
-            : sessions.FirstOrDefault(s => s.ProcessId == current.ProcessId);
-        _suppressSelection = false;
-
-        // Attach automatically to the newest session when nothing live is being watched
-        // (first launch, or the watched Revit has closed).
-        if (autoAttach && idle)
-        {
-            var target = sessions.LastOrDefault(s => s.JournalPath != null);
-            if (target != null) SessionCombo.SelectedItem = target; // triggers attach
-        }
     }
 
-    private void SessionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void Refresh_Click(object sender, RoutedEventArgs e)
     {
-        if (_suppressSelection) return;
-        if (SessionCombo.SelectedItem is not RevitSession s) return;
-
-        if (s.JournalPath == null)
-        {
-            SetStatus($"Could not find a journal for PID {s.ProcessId}. Use \"Open journal file…\".");
-            return;
-        }
-        Attach(s.JournalPath, s.ProcessId);
+        _dismissedPids.Clear();   // bring back session tabs that were closed
+        RefreshSessions();
     }
-
-    private void Refresh_Click(object sender, RoutedEventArgs e) => RefreshSessions(autoAttach: false);
 
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
@@ -975,86 +970,206 @@ public partial class MainWindow : Window
                 ? RevitSessionFinder.JournalRoot
                 : Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
         };
-        if (dlg.ShowDialog(this) == true)
-        {
-            _suppressSelection = true;
-            SessionCombo.SelectedItem = null;
-            _suppressSelection = false;
-            Attach(dlg.FileName, pid: null);
-        }
+        if (dlg.ShowDialog(this) != true) return;
+
+        var open = _tabs.FirstOrDefault(t => string.Equals(t.Path, dlg.FileName, StringComparison.OrdinalIgnoreCase));
+        if (open != null) SelectTab(open);
+        else OpenTab(dlg.FileName, null, select: true);
     }
 
+    /// <summary>Start reading a journal in a new tab (a running session when <paramref name="session"/> is given).</summary>
+    private void OpenTab(string path, RevitSession? session, bool select)
+    {
+        var tab = new SessionTab
+        {
+            Path = path,
+            Pid = session?.ProcessId,
+            Version = session?.Version ?? "Revit",
+            Model = session?.Model,
+            Started = session?.Started
+        };
+        try
+        {
+            long start = LoadExistingCheck.IsChecked == true ? ExistingBytesToLoad : 0;
+            tab.Tailer = new JournalTailer(path, start);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Could not open {path}: {ex.Message}");
+            return;
+        }
+
+        if (tab.Pid is int pid)
+        {
+            tab.Monitor = new ProcessMonitor();
+            tab.Monitor.Sampled += s => Dispatcher.InvokeAsync(() => OnPerfSample(tab, s));
+            tab.Monitor.Watch(pid);
+        }
+
+        _tabs.Add(tab);
+        AddTabButton(tab);
+        NoSessionsText.Visibility = Visibility.Collapsed;
+
+        // The backlog: classified and analysed, but no notifications or activity flashes.
+        try { Ingest(tab, tab.Tailer.ReadNewLines(), loading: true); }
+        catch (Exception ex) { SetStatus($"Read error: {ex.Message}"); }
+        UpdateTabButton(tab);
+
+        if (select || _cur == null) SelectTab(tab);
+        else SetStatus($"New Revit session in a tab: {tab.Title}");
+    }
+
+    private void AddTabButton(SessionTab tab)
+    {
+        var dot = new Ellipse { Width = 8, Height = 8, Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
+        var label = new TextBlock { MaxWidth = 280, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        var badge = new TextBlock
+        {
+            Margin = new Thickness(7, 0, 0, 0), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Errors logged in this session"
+        };
+        badge.SetResourceReference(TextBlock.ForegroundProperty, "StatusError");
+        var close = new Button { Style = (Style)FindResource("TabCloseStyle"), ToolTip = "Close this tab" };
+        close.Click += (_, e) => { CloseTab(tab); e.Handled = true; };
+
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(dot);
+        content.Children.Add(label);
+        content.Children.Add(badge);
+        content.Children.Add(close);
+
+        var button = new ToggleButton { Style = (Style)FindResource("SessionTabStyle"), Content = content };
+        button.Click += (_, _) => SelectTab(tab);
+        button.MouseDown += (_, e) => { if (e.ChangedButton == MouseButton.Middle) { CloseTab(tab); e.Handled = true; } };
+
+        tab.Button = button; tab.Dot = dot; tab.Label = label; tab.Badge = badge;
+        SessionTabs.Children.Add(button);
+    }
+
+    /// <summary>Tab text, status dot (green live, gray ended, blue file), error count and tooltip.</summary>
+    private void UpdateTabButton(SessionTab tab)
+    {
+        if (tab.Button == null) return;
+        tab.Label!.Text = tab.Title;
+        tab.Label.FontWeight = tab.Unseen ? FontWeights.SemiBold : FontWeights.Normal;
+        tab.Dot!.SetResourceReference(Shape.FillProperty, tab.Pid == null ? "Accent" : tab.Ended ? "MutedFg" : "StatusActivity");
+        int errors = tab.Analysis.Errors.Count;
+        tab.Badge!.Text = errors > 0 ? errors.ToString("N0") : "";
+        tab.Badge.Visibility = errors > 0 ? Visibility.Visible : Visibility.Collapsed;
+        tab.Button.ToolTip = tab.Description + (tab.Unseen ? "\nNew lines since you last looked." : "");
+        tab.Button.IsChecked = tab == _cur;
+    }
+
+    /// <summary>Bring a tab to the front: the log, counts, timeline, lists and graphs all switch to it.</summary>
+    private void SelectTab(SessionTab? tab)
+    {
+        if (_cur != null) _cur.SelectedNumber = TimelinePlot.SelectedNumber;
+        _cur = tab;
+        if (tab != null) tab.Unseen = false;
+        foreach (var t in _tabs) UpdateTabButton(t);
+
+        _pausedNew = 0;
+        _analysisShown = -1;
+        _margin.Bookmarks = _bookmarks;
+        if (_allLines.Count > 0) _margin.EnsureDigits(_allLines.Max(l => l.Number));
+        TimelinePlot.SetData(_allLines, _hidden);
+        TimelinePlot.SelectedNumber = tab?.SelectedNumber;
+        UpdateCounts();
+        RebuildOutput();
+        UpdateTitle();
+        ShowPerformanceOf(tab);
+        if (_timelineOpen) { UpdateTimeline(); RefreshFlyoutTab(); }
+        if (tab != null) SetStatus(tab.Pid is int p ? $"Streaming {tab.Path}  (PID {p})" : $"Showing {tab.Path}");
+        UpdateStatusBar(force: true);
+    }
+
+    private void UpdateTitle()
+    {
+        Title = _cur == null ? "The Revit Matrix" : $"The Revit Matrix — {_cur.Title}";
+        TitleInfo.Text = _cur == null ? ""
+            : System.IO.Path.GetFileName(_cur.Path) + (_cur.Pid is int pid ? $"  ·  Revit PID {pid}" : "");
+    }
+
+    private void CloseTab(SessionTab tab)
+    {
+        if (tab.IsLive && tab.Pid is int pid) _dismissedPids.Add(pid);   // don't reopen it on the next scan
+        int index = _tabs.IndexOf(tab);
+        tab.Dispose();
+        _tabs.Remove(tab);
+        if (tab.Button != null) SessionTabs.Children.Remove(tab.Button);
+        if (tab == _cur) SelectTab(_tabs.Count == 0 ? null : _tabs[Math.Min(index, _tabs.Count - 1)]);
+        NoSessionsText.Visibility = _tabs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Mark tabs whose Revit has closed.</summary>
     private void CheckProcessAlive()
     {
-        if (_watchedPid is not int pid || _processEnded) return;
-        bool alive;
-        try { alive = !Process.GetProcessById(pid).HasExited; }
-        catch (ArgumentException) { alive = false; }
-
-        if (!alive)
+        foreach (var tab in _tabs.Where(t => t.IsLive).ToList())
         {
-            Poll(); // grab any final lines
-            _processEnded = true;
-            AddLines(new[]
+            bool alive;
+            try { alive = !Process.GetProcessById(tab.Pid!.Value).HasExited; }
+            catch (ArgumentException) { alive = false; }
+            catch (InvalidOperationException) { alive = false; }
+            if (alive) continue;
+
+            PollTab(tab);   // grab any final lines
+            tab.Ended = true;
+            tab.Monitor?.Watch(null);
+            var marker = new[]
             {
                 new JournalLine(0, ""),
-                new JournalLine(0, $"{JournalClassifier.MarkerPrefix} Revit session (PID {pid}) ended ========")
-            });
-            SetStatus($"Revit PID {pid} has exited. Pick another session or open a journal.");
-            _monitor.Watch(null);
-            PerfTarget.Text = $"Revit PID {pid} has exited. The graphs show its last minutes.";
-            UpdateTimeline();
-            UpdateStatusBar();
+                new JournalLine(0, $"{JournalClassifier.MarkerPrefix} Revit session (PID {tab.Pid}) ended ========")
+            };
+            if (tab == _cur)
+            {
+                AddLines(marker);
+                SetStatus($"Revit PID {tab.Pid} has exited. Its tab stays open until you close it.");
+                PerfTarget.Text = $"Revit PID {tab.Pid} has exited. The graphs show its last minutes.";
+                UpdateTimeline();
+                UpdateStatusBar();
+            }
+            else Ingest(tab, marker, loading: false);
+            UpdateTabButton(tab);
         }
     }
 
     // ---------------------------------------------------------------- tailing
 
-    private void Attach(string path, int? pid)
-    {
-        _tailer?.Dispose();
-        _tailer = null;
-        ClearAll();
-
-        try
-        {
-            long start = LoadExistingCheck.IsChecked == true ? ExistingBytesToLoad : 0;
-            _tailer = new JournalTailer(path, start);
-            _watchedPid = pid;
-            _processEnded = false;
-            _journalPath = path;
-            WatchPerformance(pid);
-            Title = $"The Revit Matrix — {System.IO.Path.GetFileName(path)}";
-            TitleInfo.Text = System.IO.Path.GetFileName(path) + (pid is int tp ? $"  ·  Revit PID {tp}" : "");
-            SetStatus($"Streaming {path}" + (pid is int p ? $"  (PID {p})" : ""));
-            _loadingExisting = true;
-            try { Poll(); } finally { _loadingExisting = false; }
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"Could not open {path}: {ex.Message}");
-        }
-        UpdateStatusBar();
-    }
-
+    /// <summary>Read new journal lines for every tab; the tab in front also updates the screen.</summary>
     private void Poll()
     {
-        if (_tailer == null) return;
+        foreach (var tab in _tabs.ToList()) PollTab(tab);
+    }
+
+    private void PollTab(SessionTab tab)
+    {
+        if (tab.Tailer == null) return;
         List<JournalLine> lines;
         try
         {
-            lines = _tailer.ReadNewLines();
+            lines = tab.Tailer.ReadNewLines();
         }
         catch (Exception ex)
         {
-            SetStatus($"Read error: {ex.Message}");
+            if (tab == _cur) SetStatus($"Read error: {ex.Message}");
             return;
         }
-        if (lines.Count > 0) AddLines(lines);
+        if (lines.Count == 0) return;
+
+        if (tab == _cur) AddLines(lines);
+        else
+        {
+            Ingest(tab, lines, loading: false);
+            tab.Unseen = true;
+            UpdateTabButton(tab);
+        }
     }
 
-    /// <summary>Classify, store, count and (unless paused) display new lines.</summary>
-    private void AddLines(IEnumerable<JournalLine> lines)
+    /// <summary>
+    /// Classify, time, count and analyse new lines into a tab's history (any tab, in front or not).
+    /// <paramref name="loading"/>: the backlog read when a tab opens: no notifications.
+    /// </summary>
+    private List<JLine> Ingest(SessionTab tab, IEnumerable<JournalLine> lines, bool loading)
     {
         var added = new List<JLine>();
         foreach (var (number, text) in lines)
@@ -1063,24 +1178,34 @@ public partial class MainWindow : Window
             // else (no timestamp yet, live only) the time we received it.
             DateTime? time;
             bool exact = JournalClassifier.TryGetTimestamp(text, out var ts);
-            if (exact) time = _lastJournalTime = ts;
-            else time = _lastJournalTime ?? (_loadingExisting ? null : DateTime.Now);
+            if (exact) time = tab.LastJournalTime = ts;
+            else time = tab.LastJournalTime ?? (loading ? null : DateTime.Now);
 
             var line = new JLine(number, text, JournalClassifier.Category(text), time, exact);
             added.Add(line);
-            var op = _analysis.Add(line);
-            if (!_loadingExisting) MaybeNotify(line, op);
-            _counts[line.Category] = _counts.GetValueOrDefault(line.Category) + 1;
+            var op = tab.Analysis.Add(line);
+            if (!loading) MaybeNotify(tab, line, op);
+            tab.Counts[line.Category] = tab.Counts.GetValueOrDefault(line.Category) + 1;
         }
-        _allLines.AddRange(added);
-        if (added.Count > 0) _margin.EnsureDigits(added.Max(l => l.Number));
+        tab.Lines.AddRange(added);
 
-        if (_allLines.Count > MaxStoredLines)
+        if (tab.Lines.Count > MaxStoredLines)
         {
-            int drop = _allLines.Count - MaxStoredLines;
-            for (int i = 0; i < drop; i++) _counts[_allLines[i].Category]--;
-            _allLines.RemoveRange(0, drop);
+            int drop = tab.Lines.Count - MaxStoredLines;
+            for (int i = 0; i < drop; i++) tab.Counts[tab.Lines[i].Category]--;
+            tab.Lines.RemoveRange(0, drop);
         }
+        return added;
+    }
+
+    /// <summary>New live lines for the tab in front: store them, then update the screen.</summary>
+    private void AddLines(IEnumerable<JournalLine> lines)
+    {
+        if (_cur == null) return;
+        var added = Ingest(_cur, lines, loading: false);
+        if (added.Count > 0) _margin.EnsureDigits(added.Max(l => l.Number));
+        UpdateTabButton(_cur);
+
         if (_timelineOpen)
         {
             if (_flyoutTab == "timeline") UpdateTimeline();
@@ -1093,8 +1218,8 @@ public partial class MainWindow : Window
         if (paused) _pausedNew += added.Count;
         else AppendToOutput(added);
 
-        // Status bar activity (skip the backlog loaded on attach and the viewer's own markers).
-        if (!_loadingExisting && added.Any(l => l.Category is not (JKind.Default or JKind.Marker)))
+        // Status bar activity (skip the viewer's own markers).
+        if (added.Any(l => l.Category is not (JKind.Default or JKind.Marker)))
         {
             _lastActivity = DateTime.Now;
             if (added.Any(l => l.Category == JKind.Error)) Flash(JKind.Error, 4);
@@ -1164,17 +1289,23 @@ public partial class MainWindow : Window
         return remaining < 20 || Output.ExtentHeight <= Output.ViewportHeight;
     }
 
+    /// <summary>Clear the tab in front (its lines, counts, analysis and bookmarks); it keeps reading new lines.</summary>
     private void ClearAll()
     {
-        _allLines.Clear();
-        _counts.Clear();
+        if (_cur != null)
+        {
+            _cur.Lines.Clear();
+            _cur.Counts.Clear();
+            _cur.Analysis.Reset();
+            _cur.Bookmarks.Clear();
+            _cur.SelectedNumber = null;
+            UpdateTabButton(_cur);
+        }
         UpdateCounts();
         _shown.Clear();
-        _lastJournalTime = null;
         Output.Clear();
         TimelinePlot.SelectedNumber = null;
-        _analysis.Reset();
-        _bookmarks.Clear();
+        _analysisShown = -1;
         if (_timelineOpen && _flyoutTab != "timeline") RefreshFlyoutTab();
         UpdateTimeline();
     }
