@@ -2,6 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
+        xmlns:local="clr-namespace:RevitJournalViewer"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="The Revit Matrix" Height="760" Width="1150" MinWidth="760" MinHeight="420"
         Icon="Assets/TheRevitMatrix.ico"
         FontFamily="Segoe UI" FontSize="12"
@@ -180,10 +182,111 @@
             <Setter Property="Padding" Value="3,2"/>
         </Style>
 
+        <!-- Help balloons: every tooltip in the app -->
         <Style TargetType="ToolTip">
-            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="HasDropShadow" Value="True"/>
             <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{DynamicResource ButtonBg}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,8,8" MaxWidth="300">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="3" Opacity="0.45" Color="Black"/>
+                            </Border.Effect>
+                            <ContentPresenter TextElement.Foreground="{DynamicResource Fg}">
+                                <ContentPresenter.Resources>
+                                    <DataTemplate DataType="{x:Type sys:String}">
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                    </DataTemplate>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ===== Lists in the bottom flyout ===== -->
+        <Style TargetType="ListView">
+            <Setter Property="Background" Value="{DynamicResource InputBg}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+        </Style>
+        <Style TargetType="ListViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="0,2">
+                            <GridViewRowPresenter Content="{TemplateBinding Content}"
+                                                  Columns="{TemplateBinding GridView.ColumnCollection}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Foreground" Value="{DynamicResource MutedFg}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GridViewColumnHeader">
+                        <Border x:Name="Bd" Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="0,0,1,1" Padding="6,3">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ButtonHoverBg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Window-length buttons in the timeline header -->
+        <Style x:Key="Seg" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{DynamicResource MutedFg}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ButtonHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- ===================== Scroll bars (output view, dropdown list) ===================== -->
@@ -375,9 +478,41 @@
                            FontStyle="Italic" FontSize="13" Foreground="{DynamicResource MutedFg}"
                            TextTrimming="CharacterEllipsis"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="CapPerf" Style="{StaticResource Caption}" Content="&#xE9D9;"
-                            ToolTip="Revit performance: CPU, memory and GPU graphs (F2)" Click="PerfToggle_Click"/>
-                    <Button Style="{StaticResource Caption}" Content="&#xE897;" ToolTip="Help (F1)" Click="CapHelp_Click"/>
+                    <Button x:Name="CapTimeline" Style="{StaticResource Caption}" Click="TimelineToggle_Click"
+                            ToolTipService.Placement="Bottom" ToolTipService.InitialShowDelay="300">
+                        <Viewbox Width="16" Height="16">
+                            <Canvas Width="16" Height="16">
+                                <Path Data="M1.5,4 H14.5 M1.5,8 H14.5 M1.5,12 H14.5" StrokeThickness="1.3" Opacity="0.45"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                <Path Data="M2.6,4 a1.4,1.4 0 1 0 2.8,0 a1.4,1.4 0 1 0 -2.8,0 M8.6,8 a1.4,1.4 0 1 0 2.8,0 a1.4,1.4 0 1 0 -2.8,0 M5.1,12 a1.4,1.4 0 1 0 2.8,0 a1.4,1.4 0 1 0 -2.8,0 M11.1,4 a1.4,1.4 0 1 0 2.8,0 a1.4,1.4 0 1 0 -2.8,0"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            </Canvas>
+                        </Viewbox>
+                        <Button.ToolTip>
+                            <StackPanel>
+                                <TextBlock Text="Timeline" FontWeight="SemiBold"/>
+                                <TextBlock TextWrapping="Wrap" Text="Every journal entry plotted by time. Click a dot to jump to its line.  (F3)"/>
+                            </StackPanel>
+                        </Button.ToolTip>
+                    </Button>
+                    <Button x:Name="CapPerf" Style="{StaticResource Caption}" Content="&#xE9D9;" Click="PerfToggle_Click"
+                            ToolTipService.Placement="Bottom" ToolTipService.InitialShowDelay="300">
+                        <Button.ToolTip>
+                            <StackPanel>
+                                <TextBlock Text="Revit performance" FontWeight="SemiBold"/>
+                                <TextBlock TextWrapping="Wrap" Text="Live graphs of Revit's CPU, memory and GPU use.  (F2)"/>
+                            </StackPanel>
+                        </Button.ToolTip>
+                    </Button>
+                    <Button Style="{StaticResource Caption}" Content="&#xE897;" Click="CapHelp_Click"
+                            ToolTipService.Placement="Bottom" ToolTipService.InitialShowDelay="300">
+                        <Button.ToolTip>
+                            <StackPanel>
+                                <TextBlock Text="Help" FontWeight="SemiBold"/>
+                                <TextBlock Text="Open the user guide.  (F1)"/>
+                            </StackPanel>
+                        </Button.ToolTip>
+                    </Button>
                     <Button Style="{StaticResource Caption}" Content="&#xE921;" ToolTip="Minimize" Click="CapMin_Click"/>
                     <Button x:Name="CapMax" Style="{StaticResource Caption}" Content="&#xE922;" ToolTip="Maximize" Click="CapMax_Click"/>
                     <Button Style="{StaticResource CaptionClose}" Content="&#xE8BB;" ToolTip="Close" Click="CapClose_Click"/>
@@ -410,6 +545,9 @@
                 <CheckBox x:Name="ColorsCheck" Content="Colors" IsChecked="True"
                           Checked="ColorsCheck_Changed" Unchecked="ColorsCheck_Changed"/>
                 <CheckBox x:Name="AutoScrollCheck" Content="Auto-scroll" IsChecked="True"/>
+                <CheckBox x:Name="NotifyCheck" Content="Notify" IsChecked="True"
+                          Checked="NotifyCheck_Changed" Unchecked="NotifyCheck_Changed"
+                          ToolTip="While this window is in the background, show a Windows notification when Revit logs an error or finishes a long open, save or sync"/>
                 <ToggleButton x:Name="PauseToggle" Content="Pause"
                               Checked="PauseToggle_Changed" Unchecked="PauseToggle_Changed"/>
                 <Button Content="Clear" Click="Clear_Click"/>
@@ -457,7 +595,7 @@
             </DockPanel>
         </Border>
 
-        <!-- ================= Performance flyout (right) ================= -->
+        <!-- ================= Performance flyout (right, full height): docked before the bottom flyout so it is never covered ================= -->
         <!-- Width is animated between 0 and 321 from code; the content keeps a fixed width so it doesn't reflow. -->
         <Border x:Name="PerfPanel" DockPanel.Dock="Right" Width="0" ClipToBounds="True"
                 Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
@@ -476,6 +614,144 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="PerfCharts" Margin="14,4,14,4"/>
                 </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ================= Bottom flyout (under the log, beside the side flyout): Timeline, Slow operations, Add-in startup, Summary, Journal folders ================= -->
+        <!-- Height is animated between 0 and 301 from code; the content keeps a fixed height. -->
+        <Border x:Name="TimelinePanel" DockPanel.Dock="Bottom" Height="0" ClipToBounds="True"
+                Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+            <DockPanel Height="300" VerticalAlignment="Top" Margin="10,8,10,10">
+                <!-- header: tabs on the left, the open tab's controls on the right -->
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Caption}" Width="30" Height="26" Margin="6,0,0,0"
+                            Content="&#xE8BB;" Click="TimelineToggle_Click" ToolTip="Close this panel  (F3)"/>
+                    <StackPanel x:Name="TimelineControls" DockPanel.Dock="Right" Orientation="Horizontal">
+                        <TextBlock Text="Window" Foreground="{DynamicResource MutedFg}" Margin="0,0,6,0"/>
+                        <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="3" ClipToBounds="True">
+                            <StackPanel x:Name="WindowButtons" Orientation="Horizontal">
+                                <ToggleButton Style="{StaticResource Seg}" Content="1 min" Tag="60" Click="WindowButton_Click" ToolTip="Show the last minute"/>
+                                <ToggleButton Style="{StaticResource Seg}" Content="5 min" Tag="300" Click="WindowButton_Click" ToolTip="Show the last 5 minutes"/>
+                                <ToggleButton Style="{StaticResource Seg}" Content="15 min" Tag="900" Click="WindowButton_Click" ToolTip="Show the last 15 minutes"/>
+                                <ToggleButton Style="{StaticResource Seg}" Content="All" Tag="0" Click="WindowButton_Click" ToolTip="Show the whole journal"/>
+                            </StackPanel>
+                        </Border>
+                        <CheckBox x:Name="FollowCheck" Content="Follow live" IsChecked="True"
+                                  Checked="FollowCheck_Changed" Unchecked="FollowCheck_Changed"
+                                  ToolTip="Keep the newest entries in view as Revit writes them"/>
+                    </StackPanel>
+                    <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="3" ClipToBounds="True"
+                            HorizontalAlignment="Left">
+                        <StackPanel x:Name="FlyoutTabs" Orientation="Horizontal">
+                            <ToggleButton Style="{StaticResource Seg}" Content="Timeline" Tag="timeline" Click="FlyoutTab_Click"
+                                          ToolTip="Every journal entry plotted by time. Click a dot to jump to its line."/>
+                            <ToggleButton Style="{StaticResource Seg}" Content="Slow operations" Tag="slow" Click="FlyoutTab_Click"
+                                          ToolTip="Every operation Revit timed (opens, saves, syncs, regenerations, views…), with how long it took. Click a column to sort."/>
+                            <ToggleButton Style="{StaticResource Seg}" Content="Add-in startup" Tag="addins" Click="FlyoutTab_Click"
+                                          ToolTip="Which add-ins slowed Revit's startup, slowest first"/>
+                            <ToggleButton Style="{StaticResource Seg}" Content="Summary" Tag="summary" Click="FlyoutTab_Click"
+                                          ToolTip="Files, saves, syncs, commands, problems and memory for this session. Copy it into a support ticket."/>
+                            <ToggleButton Style="{StaticResource Seg}" Content="Journal folders" Tag="folders" Click="FlyoutTab_Click"
+                                          ToolTip="How much space Revit's journals take, and clean out old ones"/>
+                        </StackPanel>
+                    </Border>
+                </DockPanel>
+
+                <Grid>
+                    <!-- Timeline -->
+                    <DockPanel x:Name="TabTimeline">
+                        <DockPanel DockPanel.Dock="Bottom" Margin="22,6,0,0">
+                            <local:RangeBar x:Name="TimelineRange" DockPanel.Dock="Right" Width="300"
+                                            ToolTip="Drag a handle to zoom, or drag between the handles to move through the journal"/>
+                            <TextBlock x:Name="TimelineRangeText" DockPanel.Dock="Right" Margin="8,0,12,0"/>
+                            <TextBlock DockPanel.Dock="Right" Text="Time range" Foreground="{DynamicResource MutedFg}"/>
+                            <TextBlock x:Name="TimelineSummary" Foreground="{DynamicResource MutedFg}" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <local:TimelineView x:Name="TimelinePlot"/>
+                    </DockPanel>
+
+                    <!-- Slow operations -->
+                    <DockPanel x:Name="TabSlow" Visibility="Collapsed">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                            <CheckBox x:Name="NestedCheck" DockPanel.Dock="Right" Content="Include nested steps" Margin="10,0,0,0"
+                                      Checked="NestedCheck_Changed" Unchecked="NestedCheck_Changed"
+                                      ToolTip="Also list the steps inside each operation (e.g. the loading stages of an open)"/>
+                            <TextBlock x:Name="SlowInfo" Foreground="{DynamicResource MutedFg}" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <ListView x:Name="SlowList" SelectionMode="Single" SelectionChanged="SlowList_SelectionChanged"
+                                  GridViewColumnHeader.Click="List_HeaderClick">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Started" Width="76" DisplayMemberBinding="{Binding TimeText}"/>
+                                    <GridViewColumn Header="Seconds" Width="74" DisplayMemberBinding="{Binding SecondsText}"/>
+                                    <GridViewColumn Header="Kind" Width="96" DisplayMemberBinding="{Binding Kind}"/>
+                                    <GridViewColumn Header="Level" Width="54" DisplayMemberBinding="{Binding DepthText}"/>
+                                    <GridViewColumn Header="Operation" Width="360" DisplayMemberBinding="{Binding NameText}"/>
+                                    <GridViewColumn Header="File" Width="420" DisplayMemberBinding="{Binding Detail}"/>
+                                    <GridViewColumn Header="Line" Width="70" DisplayMemberBinding="{Binding LineText}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+
+                    <!-- Add-in startup -->
+                    <DockPanel x:Name="TabAddins" Visibility="Collapsed">
+                        <TextBlock x:Name="AddinInfo" DockPanel.Dock="Top" Margin="0,0,0,6" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource MutedFg}"/>
+                        <ListView x:Name="AddinList" SelectionMode="Single" SelectionChanged="AddinList_SelectionChanged"
+                                  GridViewColumnHeader.Click="List_HeaderClick">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Seconds" Width="74" DisplayMemberBinding="{Binding SecondsText}"/>
+                                    <GridViewColumn Header="Memory added" Width="110" DisplayMemberBinding="{Binding RamText}"/>
+                                    <GridViewColumn Header="Add-ins" Width="860" DisplayMemberBinding="{Binding NamesText}"/>
+                                    <GridViewColumn Header="Line" Width="70" DisplayMemberBinding="{Binding LineText}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+
+                    <!-- Summary -->
+                    <DockPanel x:Name="TabSummary" Visibility="Collapsed">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                            <Button Content="Copy" Margin="0" Click="SummaryCopy_Click" ToolTip="Copy the summary to the clipboard"/>
+                            <Button Content="Save…" Click="SummarySave_Click" ToolTip="Save the summary as a text file"/>
+                            <Button Content="Refresh" Click="SummaryRefresh_Click" ToolTip="Update the summary with the newest journal lines"/>
+                            <TextBlock Margin="12,0,0,0" Foreground="{DynamicResource MutedFg}"
+                                       Text="Plain text, ready to paste into a support ticket."/>
+                        </StackPanel>
+                        <TextBox x:Name="SummaryBox" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap"/>
+                    </DockPanel>
+
+                    <!-- Journal folders -->
+                    <DockPanel x:Name="TabFolders" Visibility="Collapsed">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Journals older than"/>
+                            <TextBox x:Name="DaysBox" Width="44" Margin="6,0" Text="30" TextAlignment="Right"
+                                     TextChanged="DaysBox_TextChanged" ToolTip="Age in days, by the date each journal was last written"/>
+                            <TextBlock Text="days:"/>
+                            <TextBlock x:Name="FoldersOldText" Margin="6,0,10,0" FontWeight="SemiBold"/>
+                            <Button x:Name="RecycleButton" Content="Move to Recycle Bin" Margin="0" Click="Recycle_Click"
+                                    ToolTip="Move the old journals to the Recycle Bin. Journals a running Revit has open are skipped."/>
+                            <Button Content="Refresh" Click="FoldersRefresh_Click"/>
+                            <TextBlock x:Name="FoldersTotal" Margin="12,0,0,0" Foreground="{DynamicResource MutedFg}"/>
+                        </StackPanel>
+                        <ListView x:Name="FolderList" SelectionMode="Single" MouseDoubleClick="FolderList_DoubleClick"
+                                  ToolTip="Double-click a folder to open it in File Explorer">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Revit" Width="150" DisplayMemberBinding="{Binding Version}"/>
+                                    <GridViewColumn Header="Journals" Width="80" DisplayMemberBinding="{Binding FilesText}"/>
+                                    <GridViewColumn Header="Size" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
+                                    <GridViewColumn Header="Oldest" Width="96" DisplayMemberBinding="{Binding OldestText}"/>
+                                    <GridViewColumn Header="Old enough to clear" Width="150" DisplayMemberBinding="{Binding OldText}"/>
+                                    <GridViewColumn Header="Folder" Width="560" DisplayMemberBinding="{Binding Path}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </DockPanel>
+                </Grid>
             </DockPanel>
         </Border>
 

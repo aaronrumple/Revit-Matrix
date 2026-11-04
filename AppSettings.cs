@@ -12,6 +12,12 @@ public sealed class AppSettings
     public bool ShowLineNumbers { get; set; } = true;
     public bool ShowTimestamps { get; set; } = true;
     public bool ShowPerformance { get; set; }
+    public bool ShowTimeline { get; set; }
+    /// <summary>Timeline window in seconds when following: 60, 300, 900, or 0 for the whole journal.</summary>
+    public int TimelineWindowSeconds { get; set; } = 300;
+    /// <summary>Open tab of the bottom flyout: timeline, slow, addins, summary or folders.</summary>
+    public string FlyoutTab { get; set; } = "timeline";
+    public bool Notify { get; set; } = true;
 
     /// <summary>Categories switched off (by enum name). Memory stats are hidden by default.</summary>
     public List<string> HiddenCategories { get; set; } = new() { nameof(JKind.Stats) };

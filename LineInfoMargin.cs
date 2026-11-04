@@ -38,6 +38,9 @@ public sealed class LineInfoMargin : AbstractMargin
         set { _showTimes = value; Refresh(); }
     }
 
+    /// <summary>File line numbers with a bookmark (drawn as a bar at the gutter's left edge).</summary>
+    public ISet<long>? Bookmarks { get; set; }
+
     public Theme Theme
     {
         get => _theme;
@@ -111,6 +114,9 @@ public sealed class LineInfoMargin : AbstractMargin
 
             double y = vl.GetTextLineVisualYPosition(vl.TextLines[0], VisualYPosition.TextTop) - tv.VerticalOffset;
             double x = LeftPad;
+
+            if (line.Number > 0 && Bookmarks?.Contains(line.Number) == true)
+                dc.DrawRoundedRectangle(_theme.Ui["Accent"], null, new Rect(1, y + 1, 4, Math.Max(4, vl.Height - 2)), 1.5, 1.5);
 
             if (_showNumbers)
             {

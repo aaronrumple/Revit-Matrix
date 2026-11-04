@@ -35,8 +35,27 @@ public partial class MainWindow : Window
     private const double PerfPanelWidth = 321;
     private readonly ProcessMonitor _monitor = new();
     private readonly List<PerfChart> _perfCharts = new();
-    private PerfChart _cpuChart = null!, _memChart = null!, _gpuChart = null!, _gpuMemChart = null!;
+    private PerfChart _cpuChart = null!, _memChart = null!, _gpuChart = null!, _gpuMemChart = null!, _revitMemChart = null!;
     private bool _perfOpen;
+
+    // Timeline flyout
+    private const double TimelinePanelHeight = 301;
+
+    // Bottom flyout tabs, journal analysis, bookmarks, notifications
+    private readonly JournalAnalysis _analysis = new();
+    private string _flyoutTab = "timeline";
+    private int _analysisShown = -1;          // _analysis.Version last put on screen
+    private string? _journalPath;
+    private readonly HashSet<long> _bookmarks = new();
+    private Notifier? _notifier;
+    private DateTime _lastErrorNotice = DateTime.MinValue;
+    private readonly Dictionary<ListView, (string Property, bool Descending)> _sorts = new();
+    private bool _timelineOpen;
+    private bool _follow = true;
+    private int _timelineWindow = 300;        // seconds shown when following; 0 = the whole journal
+    private DateTime _fullStart, _fullEnd;    // extent of the timestamped entries
+    private bool _suppressFollowEvent;
+    private ICSharpCode.AvalonEdit.Search.SearchPanel? _searchPanel;
     private Theme _theme = Theme.Dark;
     private string _themeMode = "Auto";      // Auto follows the Windows (and Revit) theme
 
@@ -70,7 +89,7 @@ public partial class MainWindow : Window
         Output.Options.EnableHyperlinks = false;
         Output.Options.EnableEmailHyperlinks = false;
         Output.TextArea.TextView.LineTransformers.Add(_colorizer);
-        ICSharpCode.AvalonEdit.Search.SearchPanel.Install(Output);   // Ctrl+F
+        _searchPanel = ICSharpCode.AvalonEdit.Search.SearchPanel.Install(Output);   // Ctrl+F
 
         // Gutter with journal line numbers and timestamps.
         _margin = new LineInfoMargin(_shown)
@@ -93,9 +112,15 @@ public partial class MainWindow : Window
 
         _monitor.Sampled += s => Dispatcher.InvokeAsync(() => OnPerfSample(s));
         SetPerfOpen(_settings.ShowPerformance, animate: false);
+        InitTimeline();
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
-        _pollTimer.Tick += (_, _) => { Poll(); UpdateStatusBar(); };
+        _pollTimer.Tick += (_, _) =>
+        {
+            Poll();
+            UpdateStatusBar();
+            if (_timelineOpen && _follow && TimelinePlot.LiveNow) UpdateTimeline();
+        };
 
         // Periodically re-scan so newly launched Revit sessions show up.
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
@@ -117,6 +142,7 @@ public partial class MainWindow : Window
         _sessionTimer.Stop();
         _tailer?.Dispose();
         _monitor.Dispose();
+        _notifier?.Dispose();
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
         SaveSettings();
     }
@@ -130,6 +156,8 @@ public partial class MainWindow : Window
 
         _colorizer.Theme = theme;
         _margin.Theme = theme;
+        TimelinePlot.Theme = theme;
+        TimelineRange.Theme = theme;
         foreach (var chart in _perfCharts) chart.Theme = theme;
         Output.TextArea.SelectionBrush = theme.Ui["SelectionBg"];
         Output.TextArea.SelectionForeground = null;
@@ -206,6 +234,410 @@ public partial class MainWindow : Window
         catch (Exception ex) { SetStatus($"Could not open {target}: {ex.Message}"); }
     }
 
+    // ---------------------------------------------------------------- timeline flyout
+
+    private void InitTimeline()
+    {
+        TimelinePlot.SetData(_allLines, _hidden);
+        TimelinePlot.EntryClicked += JumpToLine;
+        TimelinePlot.ViewChangedByUser += OnTimelineViewChangedByUser;
+        TimelineRange.RangeChangedByUser += OnTimelineRangeDragged;
+
+        _timelineWindow = _settings.TimelineWindowSeconds is 60 or 300 or 900 or 0 ? _settings.TimelineWindowSeconds : 300;
+        foreach (var b in WindowButtons.Children.OfType<ToggleButton>())
+            b.IsChecked = int.Parse((string)b.Tag) == _timelineWindow;
+
+        NotifyCheck.IsChecked = _settings.Notify;
+        _margin.Bookmarks = _bookmarks;
+        SelectFlyoutTab(_settings.FlyoutTab is "timeline" or "slow" or "addins" or "summary" or "folders" ? _settings.FlyoutTab : "timeline");
+        SetTimelineOpen(_settings.ShowTimeline, animate: false);
+    }
+
+    private void TimelineToggle_Click(object sender, RoutedEventArgs e) => SetTimelineOpen(!_timelineOpen, animate: true);
+
+    private void SetTimelineOpen(bool open, bool animate)
+    {
+        _timelineOpen = open;
+        double to = open ? TimelinePanelHeight : 0;
+        if (animate)
+        {
+            var slide = new DoubleAnimation(to, TimeSpan.FromMilliseconds(220))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            TimelinePanel.BeginAnimation(HeightProperty, slide);
+        }
+        else
+        {
+            TimelinePanel.BeginAnimation(HeightProperty, null);
+            TimelinePanel.Height = to;
+        }
+        CapTimeline.SetResourceReference(ForegroundProperty, open ? "Accent" : "Fg");
+        if (open) { UpdateTimeline(); RefreshFlyoutTab(); }
+        if (IsLoaded) SaveSettings();
+    }
+
+    /// <summary>Recompute the extent, move the view when following, refresh the range and labels.</summary>
+    private void UpdateTimeline()
+    {
+        bool live = _tailer != null && _watchedPid != null && !_processEnded;
+        TimelinePlot.LiveNow = live;
+
+        var (first, last) = TimelinePlot.Extent();
+        if (first is not DateTime start || last is not DateTime end)
+        {
+            TimelinePlot.ClearView();
+            TimelineSummary.Text = _allLines.Count == 0 ? "No journal entries yet." : $"{_allLines.Count:N0} journal entries, none timestamped yet";
+            TimelineRangeText.Text = "";
+            TimelineRange.Set(0, 1);
+            return;
+        }
+
+        if (live && DateTime.Now > end) end = DateTime.Now;
+        if (end <= start) end = start.AddSeconds(1);
+        _fullStart = start;
+        _fullEnd = end;
+
+        if (_follow || !TimelinePlot.HasView)
+        {
+            var viewStart = _timelineWindow > 0 ? end.AddSeconds(-_timelineWindow) : start;
+            TimelinePlot.SetView(viewStart, end);
+        }
+        else
+        {
+            TimelinePlot.InvalidateVisual();
+        }
+
+        TimelineSummary.Text = $"{_allLines.Count:N0} journal entries  ·  click a dot to jump to its line";
+        UpdateTimelineRange();
+    }
+
+    private void UpdateTimelineRange()
+    {
+        double span = Math.Max(0.001, (_fullEnd - _fullStart).TotalSeconds);
+        TimelineRange.Set((TimelinePlot.ViewStart - _fullStart).TotalSeconds / span,
+                          (TimelinePlot.ViewEnd - _fullStart).TotalSeconds / span);
+        TimelineRangeText.Text = $"{TimelinePlot.ViewStart:HH:mm:ss} – {TimelinePlot.ViewEnd:HH:mm:ss}";
+    }
+
+    private void SetFollow(bool follow)
+    {
+        _follow = follow;
+        _suppressFollowEvent = true;
+        FollowCheck.IsChecked = follow;
+        _suppressFollowEvent = false;
+    }
+
+    private void FollowCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_suppressFollowEvent || !IsLoaded) return;
+        _follow = FollowCheck.IsChecked == true;
+        UpdateTimeline();
+    }
+
+    private void WindowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleButton clicked) return;
+        _timelineWindow = int.Parse((string)clicked.Tag);
+        foreach (var b in WindowButtons.Children.OfType<ToggleButton>()) b.IsChecked = b == clicked;
+        SetFollow(true);           // choosing a window shows the newest entries again
+        UpdateTimeline();
+        SaveSettings();
+    }
+
+    private void OnTimelineViewChangedByUser()
+    {
+        SetFollow(false);
+        UpdateTimelineRange();
+    }
+
+    private void OnTimelineRangeDragged()
+    {
+        SetFollow(false);
+        double span = (_fullEnd - _fullStart).TotalSeconds;
+        TimelinePlot.SetView(_fullStart.AddSeconds(TimelineRange.Lower * span), _fullStart.AddSeconds(TimelineRange.Upper * span));
+        TimelineRangeText.Text = $"{TimelinePlot.ViewStart:HH:mm:ss} – {TimelinePlot.ViewEnd:HH:mm:ss}";
+    }
+
+    /// <summary>A timeline dot was clicked: scroll the log to that line and highlight it.</summary>
+    private void JumpToLine(JLine line)
+    {
+        string label = JournalClassifier.FilterCategories.FirstOrDefault(c => c.Kind == line.Category).Label ?? line.Category.ToString();
+        string where = line.Number > 0 ? $"line {line.Number:N0}" : "that entry";
+
+        int index = _shown.FindIndex(l => l.Number == line.Number && l.Text == line.Text);
+        if (index < 0)
+        {
+            SetStatus(_hidden.Contains(line.Category)
+                ? $"{where[..1].ToUpper()}{where[1..]} is in a hidden category ({label}). Turn it on under Show to see it in the log."
+                : $"{where[..1].ToUpper()}{where[1..]} is hidden by the text filter.");
+            return;
+        }
+
+        SelectShownLine(index);
+        SetStatus($"Jumped to {where} ({label}{(line.Time is DateTime t ? ", " + JournalClassifier.FormatTime(t) : "")}).");
+    }
+
+    /// <summary>Highlight line <paramref name="index"/> of the log (0-based) and scroll to it.</summary>
+    private void SelectShownLine(int index)
+    {
+        var docLine = Output.Document.GetLineByNumber(index + 1);
+        Output.Select(docLine.Offset, docLine.Length);
+        Output.TextArea.Caret.Offset = docLine.Offset;
+        Output.ScrollTo(index + 1, 0);
+    }
+
+    /// <summary>Jump to a journal line by its file line number (from the lists in the flyout).</summary>
+    private void JumpToNumber(long number)
+    {
+        if (number <= 0) return;
+        int i = _allLines.FindIndex(l => l.Number == number);
+        if (i >= 0) JumpToLine(_allLines[i]);
+        else SetStatus($"Line {number:N0} is no longer in memory.");
+    }
+
+    // ---------------------------------------------------------------- next/previous problem, bookmarks
+
+    private int CaretIndex => Math.Max(0, Output.TextArea.Caret.Line - 1);
+
+    private void GoToNext(Func<JLine, bool> match, bool backwards, string what)
+    {
+        if (_shown.Count == 0) return;
+        int start = CaretIndex;
+        for (int step = 1; step <= _shown.Count; step++)
+        {
+            int i = backwards ? start - step : start + step;
+            if (i < 0 || i >= _shown.Count) break;
+            if (match(_shown[i]))
+            {
+                SelectShownLine(i);
+                var l = _shown[i];
+                SetStatus($"{(backwards ? "Previous" : "Next")} {what}: line {l.Number:N0}.");
+                return;
+            }
+        }
+        SetStatus($"No {(backwards ? "earlier" : "later")} {what} in the log.");
+    }
+
+    private void ToggleBookmark()
+    {
+        if (_shown.Count == 0) return;
+        var line = _shown[Math.Min(CaretIndex, _shown.Count - 1)];
+        if (line.Number <= 0) return;
+        bool on = _bookmarks.Add(line.Number);
+        if (!on) _bookmarks.Remove(line.Number);
+        _margin.InvalidateVisual();
+        SetStatus(on ? $"Bookmarked line {line.Number:N0}. F9 / Shift+F9 move between bookmarks." : $"Removed the bookmark on line {line.Number:N0}.");
+    }
+
+    // ---------------------------------------------------------------- notifications
+
+    private void NotifyCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (IsLoaded) SaveSettings();
+    }
+
+    /// <summary>While the app is in the background: notify on errors and on long opens, saves and syncs.</summary>
+    private void MaybeNotify(JLine line, SlowOp? op)
+    {
+        if (IsActive || NotifyCheck.IsChecked != true) return;
+        if (line.Category == JKind.Error && DateTime.Now - _lastErrorNotice > TimeSpan.FromSeconds(30))
+        {
+            _lastErrorNotice = DateTime.Now;
+            (_notifier ??= new Notifier(this)).Show("Revit logged an error", line.Text.Trim().TrimStart('\'', ' '));
+        }
+        else if (op is { Depth: 1, Seconds: >= 10 } && op.Kind is "Open" or "Save" or "Sync")
+        {
+            string what = op.Kind == "Sync" ? "Sync with central" : op.Kind;
+            string file = op.Detail.Length > 0 ? System.IO.Path.GetFileName(op.Detail) : op.Name;
+            (_notifier ??= new Notifier(this)).Show($"{what} finished in {op.Seconds:0.0} s", file);
+        }
+    }
+
+    // ---------------------------------------------------------------- bottom flyout tabs
+
+    private void FlyoutTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleButton { Tag: string tab }) SelectFlyoutTab(tab);
+        SaveSettings();
+    }
+
+    private void SelectFlyoutTab(string tab)
+    {
+        _flyoutTab = tab;
+        foreach (var b in FlyoutTabs.Children.OfType<ToggleButton>()) b.IsChecked = (string)b.Tag == tab;
+        TabTimeline.Visibility = tab == "timeline" ? Visibility.Visible : Visibility.Collapsed;
+        TabSlow.Visibility = tab == "slow" ? Visibility.Visible : Visibility.Collapsed;
+        TabAddins.Visibility = tab == "addins" ? Visibility.Visible : Visibility.Collapsed;
+        TabSummary.Visibility = tab == "summary" ? Visibility.Visible : Visibility.Collapsed;
+        TabFolders.Visibility = tab == "folders" ? Visibility.Visible : Visibility.Collapsed;
+        TimelineControls.Visibility = tab == "timeline" ? Visibility.Visible : Visibility.Collapsed;
+        _analysisShown = -1;
+        if (_timelineOpen) { if (tab == "timeline") UpdateTimeline(); else RefreshFlyoutTab(); }
+    }
+
+    /// <summary>Put the open tab's data on screen (lists only when the analysis changed).</summary>
+    private void RefreshFlyoutTab()
+    {
+        switch (_flyoutTab)
+        {
+            case "slow":
+                if (_analysisShown == _analysis.Version) return;
+                _analysisShown = _analysis.Version;
+                var ops = NestedCheck.IsChecked == true ? _analysis.SlowOps : _analysis.SlowOps.Where(o => o.Depth == 1).ToList();
+                SetItems(SlowList, ops, "Seconds", true);
+                double total = ops.Where(o => o.Depth == 1).Sum(o => o.Seconds);
+                SlowInfo.Text = ops.Count == 0
+                    ? "No timed operations yet. Revit logs any operation that takes more than about 0.1 second."
+                    : $"{ops.Count:N0} operations, {total:0.0} s in top-level operations. Click a column to sort; click a row to jump to its line.";
+                break;
+
+            case "addins":
+                if (_analysisShown == _analysis.Version) return;
+                _analysisShown = _analysis.Version;
+                SetItems(AddinList, _analysis.Addins, "Seconds", true);
+                int count = _analysis.Addins.Sum(a => a.Count);
+                AddinInfo.Text = count == 0
+                    ? "No add-in startup found. It's at the start of the journal: open the session's journal with Load existing on, or from the start with Open journal file…"
+                    : $"{count} add-ins loaded in {_analysis.Addins.Sum(a => a.Seconds):0.0} s. Times are approximate: Revit timestamps only now and then while add-ins load, "
+                      + "so add-ins it didn't time separately share a row. Memory added is Revit's own figure.";
+                break;
+
+            case "summary":
+                SummaryBox.Text = BuildSummary();
+                break;
+
+            case "folders":
+                RefreshFolders();
+                break;
+        }
+    }
+
+    private string BuildSummary()
+    {
+        string state = _tailer == null ? "not attached" : _watchedPid == null ? "opened from a file" : _processEnded ? "Revit has closed" : "Revit still running";
+        return _analysis.BuildSummary(_journalPath, state, _memChart.Peak, App.VersionLabel);
+    }
+
+    private void NestedCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        _analysisShown = -1;
+        RefreshFlyoutTab();
+    }
+
+    /// <summary>Show items in a list, keeping the user's sort (default: <paramref name="property"/>).</summary>
+    private void SetItems<T>(ListView list, IEnumerable<T> items, string property, bool descending)
+    {
+        var selected = list.SelectedItem;
+        list.ItemsSource = items.ToList();
+        if (!_sorts.ContainsKey(list)) _sorts[list] = (property, descending);
+        ApplySort(list);
+        if (selected != null) list.SelectedItem = selected;
+    }
+
+    private void ApplySort(ListView list)
+    {
+        if (list.ItemsSource == null || !_sorts.TryGetValue(list, out var sort)) return;
+        var view = System.Windows.Data.CollectionViewSource.GetDefaultView(list.ItemsSource);
+        view.SortDescriptions.Clear();
+        view.SortDescriptions.Add(new System.ComponentModel.SortDescription(sort.Property,
+            sort.Descending ? System.ComponentModel.ListSortDirection.Descending : System.ComponentModel.ListSortDirection.Ascending));
+    }
+
+    // Column header -> the property to sort by (the shown text columns sort by their underlying values).
+    private static readonly Dictionary<string, string> SortKeys = new()
+    {
+        ["Started"] = "Start", ["Seconds"] = "Seconds", ["Kind"] = "Kind", ["Level"] = "Depth",
+        ["Operation"] = "Name", ["File"] = "Detail", ["Line"] = "Line",
+        ["Memory added"] = "RamMB", ["Add-ins"] = "NamesText"
+    };
+
+    private void List_HeaderClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ListView list || e.OriginalSource is not GridViewColumnHeader { Column.Header: string header }) return;
+        if (!SortKeys.TryGetValue(header, out var property)) return;
+        bool descending = !(_sorts.TryGetValue(list, out var cur) && cur.Property == property && cur.Descending);
+        if (!_sorts.ContainsKey(list) || _sorts[list].Property != property) descending = property is "Seconds" or "RamMB";
+        _sorts[list] = (property, descending);
+        ApplySort(list);
+    }
+
+    private void SlowList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (SlowList.SelectedItem is SlowOp op) JumpToNumber(op.Line);
+    }
+
+    private void AddinList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (AddinList.SelectedItem is AddinGroup g) JumpToNumber(g.Line);
+    }
+
+    private void SummaryRefresh_Click(object sender, RoutedEventArgs e) => SummaryBox.Text = BuildSummary();
+
+    private void SummaryCopy_Click(object sender, RoutedEventArgs e)
+    {
+        SummaryBox.Text = BuildSummary();
+        try { Clipboard.SetText(SummaryBox.Text); SetStatus("Session summary copied to the clipboard."); }
+        catch (Exception ex) { SetStatus($"Could not copy: {ex.Message}"); }
+    }
+
+    private void SummarySave_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Title = "Save session summary",
+            Filter = "Text files (*.txt)|*.txt",
+            FileName = $"Revit session summary {DateTime.Now:yyyy-MM-dd HHmm}.txt"
+        };
+        if (dlg.ShowDialog(this) != true) return;
+        File.WriteAllText(dlg.FileName, BuildSummary());
+        SetStatus($"Saved {dlg.FileName}");
+    }
+
+    // ---------------------------------------------------------------- journal folders
+
+    private int Days => int.TryParse(DaysBox.Text, out int d) && d >= 1 ? d : 30;
+
+    private void RefreshFolders()
+    {
+        var folders = JournalFolders.Scan(Days);
+        FolderList.ItemsSource = folders;
+        long bytes = folders.Sum(f => f.Bytes);
+        int oldFiles = folders.Sum(f => f.OldFiles);
+        FoldersOldText.Text = oldFiles == 0 ? "none" : $"{oldFiles:N0} journals, {JournalFolders.Size(folders.Sum(f => f.OldBytes))}";
+        RecycleButton.IsEnabled = oldFiles > 0;
+        FoldersTotal.Text = $"All journals: {folders.Sum(f => f.Files):N0} files, {JournalFolders.Size(bytes)}";
+    }
+
+    private void DaysBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (IsLoaded && _flyoutTab == "folders") RefreshFolders();
+    }
+
+    private void FoldersRefresh_Click(object sender, RoutedEventArgs e) => RefreshFolders();
+
+    private void Recycle_Click(object sender, RoutedEventArgs e)
+    {
+        var folders = JournalFolders.Scan(Days);
+        int n = folders.Sum(f => f.OldFiles);
+        if (n == 0) return;
+        var answer = MessageBox.Show(this,
+            $"Move {n:N0} journals older than {Days} days ({JournalFolders.Size(folders.Sum(f => f.OldBytes))}) to the Recycle Bin?\n\n"
+            + "Journals a running Revit has open, and the one shown here, are kept.",
+            "The Revit Matrix", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK) return;
+
+        var (moved, bytes, skipped) = JournalFolders.RecycleOld(Days, _tailer?.Path);
+        SetStatus($"Moved {moved:N0} journals ({JournalFolders.Size(bytes)}) to the Recycle Bin" + (skipped > 0 ? $"; kept {skipped} in use." : "."));
+        RefreshFolders();
+    }
+
+    private void FolderList_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (FolderList.SelectedItem is JournalFolderInfo f) OpenExternal(f.Path);
+    }
+
     // ---------------------------------------------------------------- performance flyout
 
     private static string FormatMB(double mb) =>
@@ -237,7 +669,13 @@ public partial class MainWindow : Window
             Subtitle = "dedicated video memory used by Revit",
             Format = FormatMB
         };
-        foreach (var chart in new[] { _cpuChart, _memChart, _gpuChart, _gpuMemChart })
+        _revitMemChart = new PerfChart
+        {
+            Title = "Revit's own memory figure", ColorKey = "ChartMemory", MinAutoMax = 1024,
+            Subtitle = "RAM in use, as Revit reports it in the journal",
+            Format = FormatMB
+        };
+        foreach (var chart in new[] { _cpuChart, _memChart, _revitMemChart, _gpuChart, _gpuMemChart })
         {
             chart.Margin = new Thickness(0, 0, 0, 16);
             _perfCharts.Add(chart);
@@ -267,6 +705,7 @@ public partial class MainWindow : Window
         _memChart.Push(s.PrivateMB);
         _gpuChart.Push(s.GpuPercent);
         _gpuMemChart.Push(s.GpuMemoryMB);
+        _revitMemChart.Push(_analysis.RevitRamMB);
 
         _cpuChart.SetUnavailable(s.CpuPercent == null && s.Note?.Contains("administrator") == true ? s.Note : null);
         bool gpuMissing = s.GpuPercent == null && s.Note?.Contains("GPU") == true;
@@ -285,6 +724,27 @@ public partial class MainWindow : Window
         if (e.Key == Key.F2)
         {
             SetPerfOpen(!_perfOpen, animate: true);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F8 && (Keyboard.Modifiers & ~ModifierKeys.Shift) == ModifierKeys.None)
+        {
+            GoToNext(l => l.Category is JKind.Error or JKind.Warning, Keyboard.Modifiers == ModifierKeys.Shift, "error or warning");
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F9 && (Keyboard.Modifiers & ~ModifierKeys.Shift) == ModifierKeys.None)
+        {
+            GoToNext(l => l.Number > 0 && _bookmarks.Contains(l.Number), Keyboard.Modifiers == ModifierKeys.Shift, "bookmark");
+            e.Handled = true;
+        }
+        else if (e.Key == Key.B && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            ToggleBookmark();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F3 && Keyboard.Modifiers == ModifierKeys.None
+                 && (_searchPanel == null || _searchPanel.IsClosed))   // F3 = find next while searching
+        {
+            SetTimelineOpen(!_timelineOpen, animate: true);
             e.Handled = true;
         }
     }
@@ -373,6 +833,10 @@ public partial class MainWindow : Window
         _settings.ShowLineNumbers = _margin.ShowNumbers;
         _settings.ShowTimestamps = _margin.ShowTimes;
         _settings.ShowPerformance = _perfOpen;
+        _settings.ShowTimeline = _timelineOpen;
+        _settings.TimelineWindowSeconds = _timelineWindow;
+        _settings.FlyoutTab = _flyoutTab;
+        _settings.Notify = NotifyCheck.IsChecked == true;
         _settings.HiddenCategories = _hidden.Select(k => k.ToString()).OrderBy(s => s).ToList();
         _settings.Save();
     }
@@ -539,6 +1003,7 @@ public partial class MainWindow : Window
             SetStatus($"Revit PID {pid} has exited. Pick another session or open a journal.");
             _monitor.Watch(null);
             PerfTarget.Text = $"Revit PID {pid} has exited. The graphs show its last minutes.";
+            UpdateTimeline();
             UpdateStatusBar();
         }
     }
@@ -557,6 +1022,7 @@ public partial class MainWindow : Window
             _tailer = new JournalTailer(path, start);
             _watchedPid = pid;
             _processEnded = false;
+            _journalPath = path;
             WatchPerformance(pid);
             Title = $"The Revit Matrix — {System.IO.Path.GetFileName(path)}";
             TitleInfo.Text = System.IO.Path.GetFileName(path) + (pid is int tp ? $"  ·  Revit PID {tp}" : "");
@@ -602,6 +1068,8 @@ public partial class MainWindow : Window
 
             var line = new JLine(number, text, JournalClassifier.Category(text), time, exact);
             added.Add(line);
+            var op = _analysis.Add(line);
+            if (!_loadingExisting) MaybeNotify(line, op);
             _counts[line.Category] = _counts.GetValueOrDefault(line.Category) + 1;
         }
         _allLines.AddRange(added);
@@ -612,6 +1080,11 @@ public partial class MainWindow : Window
             int drop = _allLines.Count - MaxStoredLines;
             for (int i = 0; i < drop; i++) _counts[_allLines[i].Category]--;
             _allLines.RemoveRange(0, drop);
+        }
+        if (_timelineOpen)
+        {
+            if (_flyoutTab == "timeline") UpdateTimeline();
+            else if (_flyoutTab is "slow" or "addins") RefreshFlyoutTab();
         }
 
         UpdateCounts();
@@ -680,6 +1153,7 @@ public partial class MainWindow : Window
         _shown.AddRange(visible);
         Output.Text = visible.Count == 0 ? "" : string.Join("\n", visible.Select(l => l.Text)) + "\n";
         _margin.InvalidateVisual();
+        TimelinePlot.InvalidateVisual();
         if (AutoScrollCheck.IsChecked == true) Output.ScrollToEnd();
     }
 
@@ -698,6 +1172,11 @@ public partial class MainWindow : Window
         _shown.Clear();
         _lastJournalTime = null;
         Output.Clear();
+        TimelinePlot.SelectedNumber = null;
+        _analysis.Reset();
+        _bookmarks.Clear();
+        if (_timelineOpen && _flyoutTab != "timeline") RefreshFlyoutTab();
+        UpdateTimeline();
     }
 
     private void LineInfoCheck_Changed(object sender, RoutedEventArgs e)

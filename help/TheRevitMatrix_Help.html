@@ -79,6 +79,13 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
     <li><a href="#filters">Category filters</a></li>
     <li><a href="#gutter">Line numbers &amp; time</a></li>
     <li><a href="#status">Status bar</a></li>
+    <li><a href="#timeline">Timeline</a></li>
+    <li><a href="#slow">Slow operations</a></li>
+    <li><a href="#addins">Add-in startup</a></li>
+    <li><a href="#summary">Session summary</a></li>
+    <li><a href="#folders">Journal folders</a></li>
+    <li><a href="#navigate">Errors &amp; bookmarks</a></li>
+    <li><a href="#notify">Notifications</a></li>
     <li><a href="#performance">Performance panel</a></li>
     <li><a href="#theme">Themes</a></li>
     <li><a href="#keys">Mouse &amp; keyboard</a></li>
@@ -184,12 +191,72 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
   <p>The backlog loaded when you attach doesn't count as activity, so opening a journal full of old errors won't turn the bar red.</p>
 </section>
 
+<section id="timeline">
+  <h2>Timeline</h2>
+  <p>Click the timeline button in the title bar (dots on lines, left of the chart button) or press <kbd>F3</kbd> to slide out the panel along the bottom of the window. Its tabs are <b>Timeline</b>, <b>Slow operations</b>, <b>Add-in startup</b>, <b>Summary</b> and <b>Journal folders</b>; the panel reopens on the tab you used last.</p>
+  <p>The <b>Timeline</b> tab It plots every journal entry by time: one row per category, marked by a colored square in the category's color, and one dot per entry.</p>
+  <ul>
+    <li><b>Hover a dot</b> to see its category, line number, time and text. Hover a square to see the category's name.</li>
+    <li><b>Click a dot</b> to jump to that line in the log; it is highlighted and the dot gets a ring. Lines in a hidden category can't be shown until you turn the category back on under <b>Show</b>.</li>
+    <li><b>Hidden categories</b> stay on the timeline, faded, so you can still see when they happened.</li>
+    <li><b>Window</b> shows the last 1, 5 or 15 minutes, or <b>All</b> of the journal. With <b>Follow live</b> on, the newest entries stay in view and a blue line marks the present.</li>
+    <li><b>Zoom and move:</b> drag the handles of the <b>Time range</b> slider, or drag between them; <kbd>Ctrl</kbd> + mouse wheel zooms around the pointer and the wheel alone moves through time. Zooming or moving turns <b>Follow live</b> off; choosing a window turns it back on.</li>
+  </ul>
+  <p>Entries without a timestamp of their own are placed at the last timestamp before them, the same time shown in the log's time column. When the performance panel is open too, it keeps the full height of the window and the bottom panel sits beside it, under the log.</p>
+</section>
+
+<section id="slow">
+  <h2>Slow operations</h2>
+  <p>Revit times every operation that takes more than about 0.1 second and writes how long it took to the journal. This tab lists them, slowest first: opens, saves, syncs with central, regenerations, view drawing, upgrades and the rest. It answers "why is Revit slow today?"</p>
+  <table>
+    <tr><th>Column</th><th>What it shows</th></tr>
+    <tr><td>Started</td><td>When the operation began (its end time in the journal, less its duration).</td></tr>
+    <tr><td>Seconds</td><td>How long it took.</td></tr>
+    <tr><td>Kind</td><td>Open, Save, Sync, Regenerate, View, Upgrade, Export, Transaction, Start/exit or Other, worked out from the operation's name.</td></tr>
+    <tr><td>Level</td><td><b>top</b> for an operation in its own right; dots for a step inside another one.</td></tr>
+    <tr><td>Operation</td><td>Revit's name for it. "Waiting:" marks a stretch where Revit's window wasn't responding.</td></tr>
+    <tr><td>File</td><td>The model or template, when Revit names one.</td></tr>
+  </table>
+  <p>Click a column heading to sort by it (again to reverse). Click a row to jump to its line in the log. Turn on <b>Include nested steps</b> to also see the stages inside each operation, such as the loading steps of an open.</p>
+</section>
+
+<section id="addins">
+  <h2>Add-in startup</h2>
+  <p>Ranks the add-ins by how long they took to load when Revit started, with the memory each added (Revit's own figure). It is the place to start when Revit is slow to open, and useful to anyone managing a firm's add-ins.</p>
+  <div class="note">Times are approximate. Revit only writes a timestamp now and then while add-ins load, so add-ins that loaded between the same two timestamps share one row; the slow one is among them. Startup is at the beginning of the journal: if this tab is empty, open the session's journal with <b>Load existing</b> on, or from the start with <b>Open journal file…</b>.</div>
+</section>
+
+<section id="summary">
+  <h2>Session summary</h2>
+  <p>One page about the session: the Revit version, when it ran, files opened, saves and syncs with how long each took, commands run, errors and warnings, the slowest operations, add-in startup, and peak memory (Revit's own figure and Windows'). <b>Copy</b> puts it on the clipboard as plain text, ready for a support ticket; <b>Save…</b> writes it to a text file.</p>
+</section>
+
+<section id="folders">
+  <h2>Journal folders</h2>
+  <p>Revit never deletes its journals. This tab lists the journal folder of every Revit version on the PC with how many journals it holds, their size and the oldest. Enter an age in days to see how many journals are older, then <b>Move to Recycle Bin</b> to clear them. Journals a running Revit has open, and the one shown in the log, are always kept, and anything moved can be restored from the Recycle Bin. Double-click a folder to open it in File Explorer.</p>
+</section>
+
+<section id="navigate">
+  <h2>Errors &amp; bookmarks</h2>
+  <ul>
+    <li><kbd>F8</kbd> jumps to the next error or warning in the log, <kbd>Shift</kbd>+<kbd>F8</kbd> to the previous one.</li>
+    <li><kbd>Ctrl</kbd>+<kbd>B</kbd> bookmarks the line the cursor is on (or removes its bookmark); bookmarked lines get a blue bar in the gutter. <kbd>F9</kbd> and <kbd>Shift</kbd>+<kbd>F9</kbd> move between bookmarks.</li>
+  </ul>
+  <p>Click a line in the log to put the cursor on it. Searching moves from the cursor, so only lines currently shown (not hidden by the filters) are found.</p>
+</section>
+
+<section id="notify">
+  <h2>Notifications</h2>
+  <p>With <b>Notify</b> on (in the toolbar), and while The Revit Matrix is in the background, Windows shows a notification when Revit logs an error (at most one every 30 seconds) and when an open, save or sync with central that took 10 seconds or more finishes. Click the notification to bring the app forward.</p>
+</section>
+
 <section id="performance">
   <h2>Performance panel</h2>
   <p>Click the chart button in the title bar, beside <b>?</b>, or press <kbd>F2</kbd> to slide out the performance panel on the right. It graphs the watched Revit session, sampled every second, over the last 5 minutes:</p>
   <table>
     <tr><th>Graph</th><th>What it shows</th></tr>
     <tr><td><span class="sw" style="background:#4EA1F3"></span>CPU</td><td>Revit's share of all the PC's logical processors, as Task Manager shows it. Much of Revit runs on one core, so on an 8-core PC a busy single-threaded task reads about 12%.</td></tr>
+    <tr><td><span class="sw" style="background:#3FC46B"></span>Revit's own memory figure</td><td>The RAM in use that Revit itself writes to the journal (the <code>Delta VM</code> / <code>RAM</code> lines). It updates when Revit reports, so it moves in steps.</td></tr>
     <tr><td><span class="sw" style="background:#3FC46B"></span>Memory</td><td>Memory Revit has committed (private bytes). The line under the panel title shows how much of it is in RAM right now.</td></tr>
     <tr><td><span class="sw" style="background:#B98AF5"></span>GPU</td><td>The busiest graphics engine Revit is using, the same figure as Task Manager's GPU column.</td></tr>
     <tr><td><span class="sw" style="background:#E8A33D"></span>GPU memory</td><td>Dedicated video memory Revit is using.</td></tr>
@@ -213,6 +280,10 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
     <tr><th>Action</th><th>Result</th></tr>
     <tr><td><kbd>F1</kbd></td><td>Open this help.</td></tr>
     <tr><td><kbd>F2</kbd></td><td>Show or hide the performance panel.</td></tr>
+    <tr><td><kbd>F8</kbd> / <kbd>Shift</kbd>+<kbd>F8</kbd></td><td>Next / previous error or warning.</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Bookmark the line the cursor is on, or remove its bookmark.</td></tr>
+    <tr><td><kbd>F9</kbd> / <kbd>Shift</kbd>+<kbd>F9</kbd></td><td>Next / previous bookmark.</td></tr>
+    <tr><td><kbd>F3</kbd></td><td>Show or hide the timeline. (While the search bar is open, <kbd>F3</kbd> finds the next match.)</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Search within the output.</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy the selected text.</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all output.</td></tr>
@@ -237,7 +308,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
 <section id="files">
   <h2>Files &amp; settings</h2>
   <ul>
-    <li>Settings (theme, hidden categories, gutter columns, performance panel) are saved in <code>%APPDATA%\TheRevitMatrix\settings.json</code>.</li>
+    <li>Settings (theme, hidden categories, gutter columns, performance panel, timeline) are saved in <code>%APPDATA%\TheRevitMatrix\settings.json</code>.</li>
     <li>Journals are read from <code>%LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit 20XX\Journals</code>, as Windows-1252 text.</li>
     <li>This help is <code>help\TheRevitMatrix_Help.html</code>, next to the program.</li>
     <li>Installed with the MSI, the program is in <code>C:\Program Files\PyPiPie\The Revit Matrix</code>.</li>
@@ -249,7 +320,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
 
 <div class="wrap">
 <footer>
-  <span>&copy; 2026 <a href="https://www.linkedin.com/in/aaronrumple/">Aaron Rumple, AIA</a> &middot; Updated November 3, 2026</span>
+  <span>&copy; 2026 <a href="https://www.linkedin.com/in/aaronrumple/">Aaron Rumple, AIA</a> &middot; Updated November 4, 2026</span>
   <span>Licensed under the <a href="https://github.com/aaronrumple/Revit-Matrix/blob/main/LICENSE">GNU GPL v3.0</a></span>
   <span>Source: <a href="https://github.com/aaronrumple/Revit-Matrix">github.com/aaronrumple/Revit-Matrix</a></span>
 </footer>

@@ -19,6 +19,13 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Line # and Time** | A gutter with each line's number in the journal file and its time as `HH:mm:ss::hh`. Bright times are the line's own timestamp; dim times are carried from the last timestamped line. |
 | **Category filters** | One chip per category with a live line count. Click to show or hide, right-click to show only that category. Presets: **All**, **Problems**, **Activity**. |
 | **Text filter** | Shows only lines containing the text, combined with the chips. |
+| **Timeline** | Click the timeline button in the title bar (or press **F3**) to slide out a timeline along the bottom: every journal entry as a dot in its category's row, by time. Click a dot to jump to its line. Windows of 1, 5 or 15 minutes or the whole journal, Follow live, and a range slider to zoom. |
+| **Slow operations** | Every operation Revit timed (opens, saves, syncs, regenerations, views…), with how long it took; sortable, click to jump to the line. |
+| **Add-in startup** | Which add-ins slowed Revit's startup, slowest first, with the memory each added. |
+| **Session summary** | Files, saves, syncs, commands, errors, warnings, slowest operations and peak memory, as plain text to copy into a support ticket. |
+| **Journal folders** | Size of every Revit version's journal folder; moves journals older than N days to the Recycle Bin. |
+| **Errors & bookmarks** | **F8** / **Shift+F8** jump between errors and warnings; **Ctrl+B** bookmarks a line, **F9** / **Shift+F9** move between bookmarks. |
+| **Notifications** | While the app is in the background, a Windows notification for errors and for long opens, saves and syncs. |
 | **Performance panel** | Click the chart button in the title bar (or press **F2**) to slide out live graphs of the watched Revit session's CPU, memory, GPU and GPU memory over the last 5 minutes, with current values and peaks. |
 | **Status bar** | Changes color with the session: idle, live, new activity, warning, error, paused (with a count of new lines), ended. |
 | **Tools** | Auto-scroll that stops when you scroll up, Pause/Resume, Clear, Save (with the line-number and time columns). |
@@ -123,6 +130,11 @@ MainWindow.xaml(.cs)          window: title bar, toolbar, filters, output, statu
 RevitSessionFinder.cs         running Revit processes -> their journal files
 ProcessMonitor.cs             samples Revit's CPU, memory and GPU once a second
 PerfChart.cs                  running graph used in the performance panel
+TimelineView.cs               the timeline: entries by time and category, hover and click to jump
+RangeBar.cs                   two-handle time-range slider under the timeline
+JournalAnalysis.cs            reads the journal for timed operations, add-in startup, commands, problems, memory
+JournalFolders.cs             journal folder sizes; moves old journals to the Recycle Bin
+Notifier.cs                   Windows notifications
 JournalTailer.cs              reads a journal as Revit writes it, with file line numbers
 JournalClassifier.cs          line categories, colored spans, timestamps
 JournalColorizer.cs           colors the output view

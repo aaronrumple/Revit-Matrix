@@ -1,7 +1,7 @@
 {
   "name": "revit-matrix",
   "productName": "The Revit Matrix",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Watches a running Revit session and streams its journal file live, with colors, filters, line numbers and timestamps.",
   "private": true,
   "author": {
