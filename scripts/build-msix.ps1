@@ -63,6 +63,9 @@ Invoke-Checked 'dotnet' @(
   '-o', $publishDir
 )
 
+# Remove packages from earlier builds so an old one can't be uploaded by mistake.
+if (Test-Path $msixDir) { Get-ChildItem -LiteralPath $msixDir -Filter '*.msix' | Remove-Item -Force }
+
 if (Test-Path $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
 New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 Copy-Item -Path (Join-Path $publishDir '*') -Destination $stageDir -Recurse -Force
@@ -81,6 +84,13 @@ $makePri = Find-WindowsSdkTool 'makepri.exe'
 # (Assets\Square44x44Logo.png etc.) resolve to the right size on each screen.
 $priConfig = Join-Path $msixDir 'priconfig.xml'
 Invoke-Checked $makePri @('createconfig', '/cf', $priConfig, '/dq', 'en-US', '/pv', '10.0.0', '/o')
+# The default config splits the scale variants into separate resources.scale-*.pri files meant for
+# resource packages (a bundle). This is a single package, so keep everything in one resources.pri;
+# otherwise makeappx refuses to pack it.
+$priXml = New-Object System.Xml.XmlDocument
+$priXml.Load($priConfig)
+foreach ($node in @($priXml.SelectNodes('//packaging'))) { [void]$node.ParentNode.RemoveChild($node) }
+$priXml.Save($priConfig)
 Invoke-Checked $makePri @(
   'new', '/pr', $stageDir, '/cf', $priConfig,
   '/mn', (Join-Path $stageDir 'AppxManifest.xml'),
@@ -125,4 +135,4 @@ if ($verificationExitCode -ne 0) {
     throw "SignTool verification failed with exit code $verificationExitCode."
   }
 }
-Write-Host "`nSigned MSIX created: $msixPath"
+Write-Host "`nSigned MSIX created: $msixPath (version $msixVersion)"
