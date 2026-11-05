@@ -1030,12 +1030,12 @@ public partial class MainWindow : Window
         var area = Output.TextArea;
         RoutedUICommand command = key switch
         {
-            Key.Home => shift ? EditingCommands.SelectToDocumentStart : EditingCommands.MoveToDocumentStart,
-            Key.End => shift ? EditingCommands.SelectToDocumentEnd : EditingCommands.MoveToDocumentEnd,
-            Key.PageUp => shift ? EditingCommands.SelectUpByPage : EditingCommands.MoveUpByPage,
-            Key.PageDown => shift ? EditingCommands.SelectDownByPage : EditingCommands.MoveDownByPage,
-            Key.Up => shift ? EditingCommands.SelectUpByLine : EditingCommands.MoveUpByLine,
-            _ => shift ? EditingCommands.SelectDownByLine : EditingCommands.MoveDownByLine,
+            Key.Home => shift ? System.Windows.Documents.EditingCommands.SelectToDocumentStart : System.Windows.Documents.EditingCommands.MoveToDocumentStart,
+            Key.End => shift ? System.Windows.Documents.EditingCommands.SelectToDocumentEnd : System.Windows.Documents.EditingCommands.MoveToDocumentEnd,
+            Key.PageUp => shift ? System.Windows.Documents.EditingCommands.SelectUpByPage : System.Windows.Documents.EditingCommands.MoveUpByPage,
+            Key.PageDown => shift ? System.Windows.Documents.EditingCommands.SelectDownByPage : System.Windows.Documents.EditingCommands.MoveDownByPage,
+            Key.Up => shift ? System.Windows.Documents.EditingCommands.SelectUpByLine : System.Windows.Documents.EditingCommands.MoveUpByLine,
+            _ => shift ? System.Windows.Documents.EditingCommands.SelectDownByLine : System.Windows.Documents.EditingCommands.MoveDownByLine,
         };
         command.Execute(null, area);
         if (key == Key.End && !shift) Output.ScrollToEnd();   // back at the bottom: auto-scroll follows again
