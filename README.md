@@ -27,7 +27,8 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Errors & bookmarks** | **F8** / **Shift+F8** jump between errors and warnings; **Ctrl+B** bookmarks a line, **F9** / **Shift+F9** move between bookmarks. |
 | **Notifications** | While the app is in the background, a Windows notification for errors and for long opens, saves and syncs. |
 | **Performance panel** | Click the chart button in the title bar (or press **F2**) to slide out live graphs of the selected tab's Revit CPU, memory, GPU and GPU memory over the last 5 minutes, with current values and peaks. |
-| **Right-click menu** | Right-click anywhere to open or close the bottom panel (on any of its tabs) and the performance panel; over the log it also bookmarks the clicked line, copies and selects all. |
+| **Keyboard** | Home / End go to the first / latest line, Page Up / Page Down and the arrow keys move through the log, from anywhere in the window. |
+| **Right-click menu** | Right-click anywhere to open or close the bottom panel (on any of its tabs) and the performance panel, or go to the Start or Current (latest) line; over the log it also bookmarks the clicked line, copies and selects all. |
 | **Status bar** | Changes color with the session: idle, live, new activity, warning, error, paused (with a count of new lines), ended. |
 | **Tools** | Auto-scroll that stops when you scroll up, Pause/Resume, Clear, Save (with the line-number and time columns). |
 | **Help** | Press **F1** or click **?** in the title bar for the full guide (`help/TheRevitMatrix_Help.html`). |

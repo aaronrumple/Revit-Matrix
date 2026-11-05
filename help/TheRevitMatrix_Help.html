@@ -115,7 +115,7 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
     <tr><td>Output</td><td>The journal, with the line-number and time gutter on the left.</td></tr>
     <tr><td>Status bar</td><td>Credit, status messages, the session state and the version. Its color shows what the session is doing.</td></tr>
   </table>
-  <p><b>Right-click menu:</b> right-click anywhere in the window to open or close the panels. Pick <b>Timeline</b>, <b>Slow operations</b>, <b>Add-in startup</b>, <b>Session summary</b> or <b>Journal folders</b> to open the bottom panel on that tab (a check mark shows the one that's open; pick it again to close the panel), or <b>Revit performance</b> to show or hide the side panel. Over the log, the menu also has <b>Bookmark line</b> for the line you clicked, <b>Copy</b> and <b>Select all</b>.</p>
+  <p><b>Right-click menu:</b> right-click anywhere in the window to open or close the panels. Pick <b>Timeline</b>, <b>Slow operations</b>, <b>Add-in startup</b>, <b>Session summary</b> or <b>Journal folders</b> to open the bottom panel on that tab (a check mark shows the one that's open; pick it again to close the panel), or <b>Revit performance</b> to show or hide the side panel, and <b>Start</b> or <b>Current</b> to go to the first or latest line of the log. Over the log, the menu also has <b>Bookmark line</b> for the line you clicked, <b>Copy</b> and <b>Select all</b>.</p>
 </section>
 
 <section id="sessions">
@@ -293,6 +293,9 @@ footer { color: var(--muted); font-size: 13px; padding: 14px 4px 40px; border-to
   <table>
     <tr><th>Action</th><th>Result</th></tr>
     <tr><td><kbd>F1</kbd></td><td>Open this help.</td></tr>
+    <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>Go to the first line / the latest line of the log. At the latest line, auto-scroll follows new lines again.</td></tr>
+    <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd></td><td>Move up / down the log a page at a time.</td></tr>
+    <tr><td><kbd>&uarr;</kbd> / <kbd>&darr;</kbd></td><td>Move up / down the log a line at a time. These keys work wherever you are in the window except while typing in a box or moving in a list. Hold <kbd>Shift</kbd> to select as you move.</td></tr>
     <tr><td><kbd>F2</kbd></td><td>Show or hide the performance panel.</td></tr>
     <tr><td><kbd>F8</kbd> / <kbd>Shift</kbd>+<kbd>F8</kbd></td><td>Next / previous error or warning.</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Bookmark the line the cursor is on, or remove its bookmark.</td></tr>

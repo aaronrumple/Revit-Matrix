@@ -940,6 +940,7 @@ public partial class MainWindow : Window
             item.IsChecked = _timelineOpen && _flyoutTab == (string)item.Tag;
         }
         MenuPerf.IsChecked = _perfOpen;
+        MenuStart.IsEnabled = MenuCurrent.IsEnabled = Output.Document.TextLength > 0;
 
         var lineItems = _menuOnLog ? Visibility.Visible : Visibility.Collapsed;
         MenuLogSeparator.Visibility = MenuBookmark.Visibility = MenuCopy.Visibility = MenuSelectAll.Visibility = lineItems;
@@ -974,6 +975,7 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (HandleLogNavigation(e)) { e.Handled = true; return; }
         if (e.Key == Key.F2)
         {
             SetPerfOpen(!_perfOpen, animate: true);
@@ -1001,6 +1003,66 @@ public partial class MainWindow : Window
             e.Handled = true;
         }
     }
+
+    /// <summary>
+    /// Home, End, Page Up, Page Down and the up and down arrows move through the log wherever the
+    /// focus is, except in a text box or list (where they keep their usual meaning). In the log itself
+    /// the arrows and pages work as usual, and Home and End go to the first and latest line.
+    /// Shift extends the selection.
+    /// </summary>
+    private bool HandleLogNavigation(KeyEventArgs e)
+    {
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is not (Key.Home or Key.End or Key.PageUp or Key.PageDown or Key.Up or Key.Down)) return false;
+        var mods = Keyboard.Modifiers;
+        if ((mods & (ModifierKeys.Alt | ModifierKeys.Windows)) != 0) return false;
+        bool shift = mods.HasFlag(ModifierKeys.Shift);
+
+        var focused = Keyboard.FocusedElement as DependencyObject;
+        bool inLog = focused != null && (focused == Output || Output.IsAncestorOf(focused));
+        if (!inLog && focused != null
+            && (FindParent<TextBox>(focused) != null || FindParent<ListBox>(focused) != null
+                || FindParent<ComboBox>(focused) != null || FindParent<System.Windows.Controls.Primitives.MenuBase>(focused) != null))
+            return false;                                    // typing, or moving in a list or menu
+        if (inLog && key is not (Key.Home or Key.End)) return false;   // the editor handles these itself
+        if (inLog && mods.HasFlag(ModifierKeys.Control)) return false; // Ctrl+Home/End: editor default (same result)
+
+        var area = Output.TextArea;
+        RoutedUICommand command = key switch
+        {
+            Key.Home => shift ? EditingCommands.SelectToDocumentStart : EditingCommands.MoveToDocumentStart,
+            Key.End => shift ? EditingCommands.SelectToDocumentEnd : EditingCommands.MoveToDocumentEnd,
+            Key.PageUp => shift ? EditingCommands.SelectUpByPage : EditingCommands.MoveUpByPage,
+            Key.PageDown => shift ? EditingCommands.SelectDownByPage : EditingCommands.MoveDownByPage,
+            Key.Up => shift ? EditingCommands.SelectUpByLine : EditingCommands.MoveUpByLine,
+            _ => shift ? EditingCommands.SelectDownByLine : EditingCommands.MoveDownByLine,
+        };
+        command.Execute(null, area);
+        if (key == Key.End && !shift) Output.ScrollToEnd();   // back at the bottom: auto-scroll follows again
+        area.Caret.BringCaretToView();
+        return true;
+    }
+
+    private void GoToStart()
+    {
+        if (Output.Document.TextLength == 0) return;
+        Output.TextArea.ClearSelection();
+        Output.TextArea.Caret.Offset = 0;
+        Output.ScrollToHome();
+        Output.Focus();
+    }
+
+    private void GoToCurrent()
+    {
+        if (Output.Document.TextLength == 0) return;
+        Output.TextArea.ClearSelection();
+        Output.TextArea.Caret.Line = Output.Document.LineCount;
+        Output.ScrollToEnd();
+        Output.Focus();
+    }
+
+    private void MenuStart_Click(object sender, RoutedEventArgs e) => GoToStart();
+    private void MenuCurrent_Click(object sender, RoutedEventArgs e) => GoToCurrent();
 
     private void SetPerfOpen(bool open, bool animate)
     {
