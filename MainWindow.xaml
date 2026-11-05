@@ -291,6 +291,36 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- × inside a text box that clears it -->
+        <Style x:Key="ClearButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedFg}"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="Content" Value="&#xE711;"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectionBg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="TabCloseStyle" TargetType="Button">
             <Setter Property="Width" Value="18"/>
             <Setter Property="Height" Value="18"/>
@@ -693,9 +723,13 @@
                 <Button Content="Clear" Click="Clear_Click"/>
                 <Button Content="Save…" Click="Save_Click"/>
             </StackPanel>
-            <TextBox x:Name="FilterBox" MinWidth="150"
-                     ToolTip="Show only lines containing this text (case-insensitive)"
-                     TextChanged="FilterChanged"/>
+            <Grid MinWidth="150">
+                <TextBox x:Name="FilterBox" Padding="3,2,24,2"
+                         ToolTip="Show only lines containing this text (case-insensitive). Esc clears it."
+                         TextChanged="FilterChanged" PreviewKeyDown="FilterBox_PreviewKeyDown"/>
+                <Button x:Name="FilterClear" Style="{StaticResource ClearButtonStyle}" HorizontalAlignment="Right"
+                        Margin="0,0,3,0" Visibility="Collapsed" Click="FilterClear_Click" ToolTip="Clear the filter (Esc)"/>
+            </Grid>
         </DockPanel>
 
         <!-- Category filter -->

@@ -1560,8 +1560,20 @@ public partial class MainWindow : Window
 
     private void FilterChanged(object sender, RoutedEventArgs e)
     {
+        if (FilterClear != null) FilterClear.Visibility = FilterBox.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (!IsLoaded) return;
         RebuildOutput();
+    }
+
+    private void FilterClear_Click(object sender, RoutedEventArgs e)
+    {
+        FilterBox.Clear();
+        FilterBox.Focus();
+    }
+
+    private void FilterBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && FilterBox.Text.Length > 0) { FilterBox.Clear(); e.Handled = true; }
     }
 
     private void ColorsCheck_Changed(object sender, RoutedEventArgs e)
