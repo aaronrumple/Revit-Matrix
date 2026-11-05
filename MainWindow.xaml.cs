@@ -313,7 +313,7 @@ public partial class MainWindow : Window
             TimelinePlot.InvalidateVisual();
         }
 
-        TimelineSummary.Text = $"{_allLines.Count:N0} journal entries  ·  click a dot to jump to its line  ·  middle-drag to move through time";
+        TimelineSummary.Text = $"{_allLines.Count:N0} journal entries  ·  click a dot to jump to its line  ·  wheel to zoom at the pointer  ·  middle-drag to move";
         UpdateTimelineRange();
     }
 

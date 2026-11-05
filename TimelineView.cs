@@ -375,22 +375,25 @@ public sealed class TimelineView : FrameworkElement
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
-        if (!_hasView) return;
+        if (!_hasView || _panning) return;
         var plot = PlotRect;
         double span = (_viewEnd - _viewStart).TotalSeconds;
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
         {
-            // zoom around the mouse
-            double f = Math.Clamp((_mouse.X - plot.Left) / plot.Width, 0, 1);
-            double factor = e.Delta > 0 ? 0.8 : 1.25;
-            double newSpan = Math.Clamp(span * factor, 5, 7 * 86400);
-            var anchor = _viewStart.AddSeconds(span * f);
-            SetView(anchor.AddSeconds(-newSpan * f), anchor.AddSeconds(newSpan * (1 - f)));
+            // Shift + wheel moves through time
+            double shift = span * 0.1 * (e.Delta > 0 ? -1 : 1);
+            SetView(_viewStart.AddSeconds(shift), _viewEnd.AddSeconds(shift));
         }
         else
         {
-            double shift = span * 0.1 * (e.Delta > 0 ? -1 : 1);
-            SetView(_viewStart.AddSeconds(shift), _viewEnd.AddSeconds(shift));
+            // Wheel (or Ctrl + wheel) zooms around the pointer: the moment under the mouse stays under the mouse.
+            // Same mapping as drawing: x = plot.Left + 4 + fraction * (plot.Width - 8).
+            double x = e.GetPosition(this).X;
+            double f = Math.Clamp((x - plot.Left - 4) / Math.Max(1, plot.Width - 8), 0, 1);
+            double steps = e.Delta / 120.0;                       // high-resolution wheels send smaller deltas
+            double newSpan = Math.Clamp(span * Math.Pow(0.8, steps), 5, 7 * 86400);
+            var anchor = _viewStart.AddSeconds(span * f);
+            SetView(anchor.AddSeconds(-newSpan * f), anchor.AddSeconds(newSpan * (1 - f)));
         }
         ViewChangedByUser?.Invoke();
         e.Handled = true;
