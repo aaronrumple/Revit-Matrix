@@ -19,7 +19,7 @@
     <Version>1.1.0</Version>
     <Product>The Revit Matrix</Product>
     <AssemblyTitle>The Revit Matrix</AssemblyTitle>
-    <Description>Watches a running Revit session and streams its journal file live.</Description>
+    <Description>Streams every running Revit session's journal file live, with colors, filters, a timeline, slow-operation and add-in reports, and performance graphs.</Description>
     <Authors>Aaron Rumple, AIA</Authors>
     <Company>PyPiPie</Company>
     <Copyright>© 2026 Aaron Rumple, AIA. Licensed under GPL-3.0-or-later.</Copyright>

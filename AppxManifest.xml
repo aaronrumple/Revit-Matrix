@@ -29,7 +29,7 @@
       <uap:VisualElements
         AppListEntry="default"
         DisplayName="The Revit Matrix"
-        Description="Watches a running Revit session and streams its journal file live."
+        Description="Streams every running Revit session's journal file live, with colors, filters, a timeline, slow-operation and add-in reports, and performance graphs."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />

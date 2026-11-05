@@ -18,7 +18,7 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Output** | Journal text colored by kind: commands, replay actions, quoted values, timestamps, comments, `API_SUCCESS`, warnings, errors, memory stats. |
 | **Line # and Time** | A gutter with each line's number in the journal file and its time as `HH:mm:ss::hh`. Bright times are the line's own timestamp; dim times are carried from the last timestamped line. |
 | **Category filters** | One chip per category with a live line count. Click to show or hide, right-click to show only that category. Presets: **All**, **Problems**, **Activity**. |
-| **Text filter** | Shows only lines containing the text, combined with the chips. |
+| **Text filter** | Shows only lines containing the text, combined with the chips. Click **×** or press **Esc** to clear it. |
 | **Timeline** | Click the timeline button in the title bar (or press **F3**) to slide out a timeline along the bottom: every journal entry as a dot in its category's row, by time. Click a dot to jump to its line. Windows of 1, 5 or 15 minutes or the whole journal, Follow live, and a range slider to zoom. Middle-button drag slides the timeline through time; the wheel zooms around the pointer (Shift + wheel moves). |
 | **Slow operations** | Every operation Revit timed (opens, saves, syncs, regenerations, views…), with how long it took; sortable, click to jump to the line. |
 | **Add-in startup** | Which add-ins slowed Revit's startup, slowest first, with the memory each added. |
@@ -102,6 +102,7 @@ This publishes the app, stages it with `AppxManifest.xml` and the logos in `Asse
 
 - **Signing:** the script uses the certificate in your user store whose subject matches the manifest's `Publisher`, or one you name with `-CertificateThumbprint <thumbprint>` or `-PfxPath <file.pfx>` (for example `npm run msix -- -PfxPath cert.pfx`). If none matches, it prints the command to make a development certificate. A self-signed package installs only after its certificate is added to **Local Computer › Trusted People**.
 - **Microsoft Store:** the Store re-signs packages, so any signature is fine for upload. `Identity Name`, `Publisher` and `PublisherDisplayName` in `AppxManifest.xml` must match **Partner Center › Product identity** exactly.
+- **Store listing:** the description, features, search terms, capability justification and other Partner Center text are in [`STORE_LISTING.md`](STORE_LISTING.md).
 - **Settings:** installed from the MSIX, the app keeps its settings in its own private copy of `%APPDATA%\TheRevitMatrix`, separate from an MSI install.
 
 ## How it works
