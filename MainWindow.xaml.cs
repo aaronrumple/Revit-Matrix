@@ -850,6 +850,70 @@ public partial class MainWindow : Window
 
     private void PerfToggle_Click(object sender, RoutedEventArgs e) => SetPerfOpen(!_perfOpen, animate: true);
 
+    // ---------------------------------------------------------------- right-click menu
+
+    private bool _menuOnLog;   // the menu was opened over the log: show the line items
+
+    private void Window_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        // Text boxes keep their own Cut/Copy/Paste menu.
+        if (e.OriginalSource is DependencyObject src && FindParent<TextBox>(src) != null) { e.Handled = true; return; }
+
+        _menuOnLog = e.OriginalSource is DependencyObject d && (d == Output || Output.IsAncestorOf(d));
+        if (_menuOnLog && Output.SelectionLength == 0)
+        {
+            // Put the caret on the line under the pointer, so "Bookmark this line" means that line.
+            var pos = Output.GetPositionFromPoint(Mouse.GetPosition(Output));
+            if (pos is { } p) Output.TextArea.Caret.Position = p;
+        }
+    }
+
+    private static T? FindParent<T>(DependencyObject? d) where T : DependencyObject
+    {
+        while (d != null && d is not T)
+            d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        return d as T;
+    }
+
+    private void MainMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        foreach (var item in new[] { MenuTimeline, MenuSlow, MenuAddins, MenuSummary, MenuFolders })
+        {
+            item.IsChecked = _timelineOpen && _flyoutTab == (string)item.Tag;
+        }
+        MenuPerf.IsChecked = _perfOpen;
+
+        var lineItems = _menuOnLog ? Visibility.Visible : Visibility.Collapsed;
+        MenuLogSeparator.Visibility = MenuBookmark.Visibility = MenuCopy.Visibility = MenuSelectAll.Visibility = lineItems;
+        if (_menuOnLog)
+        {
+            long number = _shown.Count == 0 ? 0 : _shown[Math.Min(CaretIndex, _shown.Count - 1)].Number;
+            MenuBookmark.IsEnabled = number > 0;
+            MenuBookmark.Header = number <= 0 ? "Bookmark this line"
+                : _bookmarks.Contains(number) ? $"Remove bookmark on line {number:N0}" : $"Bookmark line {number:N0}";
+            MenuCopy.IsEnabled = Output.SelectionLength > 0;
+            MenuSelectAll.IsEnabled = Output.Document.TextLength > 0;
+        }
+    }
+
+    /// <summary>A bottom-panel tab: open the panel on it, or close the panel if it's already showing.</summary>
+    private void MenuFlyoutTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string tab }) return;
+        if (_timelineOpen && _flyoutTab == tab) SetTimelineOpen(false, animate: true);
+        else
+        {
+            SelectFlyoutTab(tab);
+            if (!_timelineOpen) SetTimelineOpen(true, animate: true);
+        }
+        SaveSettings();
+    }
+
+    private void MenuPerf_Click(object sender, RoutedEventArgs e) => SetPerfOpen(!_perfOpen, animate: true);
+    private void MenuBookmark_Click(object sender, RoutedEventArgs e) => ToggleBookmark();
+    private void MenuCopy_Click(object sender, RoutedEventArgs e) => Output.Copy();
+    private void MenuSelectAll_Click(object sender, RoutedEventArgs e) => Output.SelectAll();
+
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.F2)

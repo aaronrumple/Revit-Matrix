@@ -9,7 +9,7 @@
         FontFamily="Segoe UI" FontSize="12"
         Background="{DynamicResource WindowBg}" Foreground="{DynamicResource Fg}"
         BorderBrush="{DynamicResource Border}" BorderThickness="1"
-        StateChanged="Window_StateChanged" PreviewKeyDown="Window_PreviewKeyDown"
+        StateChanged="Window_StateChanged" PreviewKeyDown="Window_PreviewKeyDown" ContextMenuOpening="Window_ContextMenuOpening"
         Loaded="Window_Loaded" Closing="Window_Closing">
 
     <!-- PyPiPie custom title bar: the app draws its own caption, following the theme -->
@@ -515,7 +515,88 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Right-click menu (themed) -->
+        <Style TargetType="ContextMenu">
+            <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            <Setter Property="Background" Value="{DynamicResource PanelBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1" CornerRadius="4" Padding="0,4" Margin="0,0,6,6">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.35"/>
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="0,4" Margin="4,0" CornerRadius="3" MinWidth="230">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="26"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="Check" Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource Accent}" Visibility="Hidden"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                                <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Margin="24,0,10,0"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource MutedFg}"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ItemHoverBg}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource MutedFg}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Separator" x:Key="{x:Static MenuItem.SeparatorStyleKey}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Margin="8,4" Background="{DynamicResource Border}"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
+
+    <Window.ContextMenu>
+        <ContextMenu x:Name="MainMenu" Opened="MainMenu_Opened">
+            <MenuItem x:Name="MenuTimeline" Header="Timeline" InputGestureText="F3" Tag="timeline" Click="MenuFlyoutTab_Click"/>
+            <MenuItem x:Name="MenuSlow" Header="Slow operations" Tag="slow" Click="MenuFlyoutTab_Click"/>
+            <MenuItem x:Name="MenuAddins" Header="Add-in startup" Tag="addins" Click="MenuFlyoutTab_Click"/>
+            <MenuItem x:Name="MenuSummary" Header="Session summary" Tag="summary" Click="MenuFlyoutTab_Click"/>
+            <MenuItem x:Name="MenuFolders" Header="Journal folders" Tag="folders" Click="MenuFlyoutTab_Click"/>
+            <Separator/>
+            <MenuItem x:Name="MenuPerf" Header="Revit performance" InputGestureText="F2" Click="MenuPerf_Click"/>
+            <Separator x:Name="MenuLogSeparator"/>
+            <MenuItem x:Name="MenuBookmark" Header="Bookmark this line" InputGestureText="Ctrl+B" Click="MenuBookmark_Click"/>
+            <MenuItem x:Name="MenuCopy" Header="Copy" InputGestureText="Ctrl+C" Click="MenuCopy_Click"/>
+            <MenuItem x:Name="MenuSelectAll" Header="Select all" InputGestureText="Ctrl+A" Click="MenuSelectAll_Click"/>
+        </ContextMenu>
+    </Window.ContextMenu>
 
     <DockPanel x:Name="RootPanel">
         <!-- ================= Title bar ================= -->
