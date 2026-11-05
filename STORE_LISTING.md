@@ -45,7 +45,7 @@ NOTIFICATIONS
 While you work in Revit, The Revit Matrix can show a Windows notification when Revit logs an error, or when an open, save or sync with central that took 10 seconds or more finishes.
 
 TIDY UP OLD JOURNALS
-Revit never deletes its journals, so they pile up. The Journal folders tab shows the journal folder of every Revit version on your PC, how many journals each holds and their size. Select the journals you want, or every journal older than a number of days, and move them to the Recycle Bin. Journals a running Revit is using are always kept.
+Journal files can accumulate over time. The Journal folders tab shows each Revit version's journal folder and its size. Select specific journals or all journals older than a chosen number of days and move them to the Recycle Bin. Journals used by a running Revit session are kept.
 
 MADE TO FIT IN
 - Dark and light themes that follow Windows, and Revit when Revit follows the system theme.
@@ -53,12 +53,15 @@ MADE TO FIT IN
 - Save the log, with its line numbers and times, to a text file.
 - Full help built in: press F1.
 
-READ-ONLY AND PRIVATE
-The Revit Matrix only reads Revit's journal files. It never changes them, never blocks Revit from writing them, and doesn't need Revit add-ins or an Autodesk account. It collects no personal data and sends nothing over the internet.
+LOCAL, PRIVATE JOURNAL MONITORING
+Live monitoring reads the journal while Revit is writing it, without blocking Revit or changing the active file. The Journal folders view can move journals you select to the Recycle Bin; journals in use by a running Revit session are kept. No Revit add-in or Autodesk account is needed. The app collects no personal data and sends nothing over the internet.
 
 Free and open source under the GNU General Public License v3.0. Source code: https://github.com/aaronrumple/Revit-Matrix
 
-Requires Autodesk Revit (any version that writes journals to %LOCALAPPDATA%\Autodesk\Revit) on the same PC.
+REQUIREMENTS
+- Autodesk Revit installed on the same PC for live session detection and monitoring. Supports Revit versions that write journals under %LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit 20XX\Journals.
+- Saved journal files can also be opened without a running Revit session.
+- Windows 10 version 2004 (build 19041) or later, x64.
 
 Autodesk and Revit are registered trademarks of Autodesk, Inc. The Revit Matrix is an independent companion app and is not affiliated with, sponsored by or endorsed by Autodesk.
 
@@ -88,7 +91,7 @@ Version 1.1.0
 10. Windows notifications for errors and for long opens, saves and syncs
 11. Clean up old journals: pick journals and move them to the Recycle Bin
 12. Dark and light themes that follow Windows
-13. Read-only: never changes or blocks Revit's journals; no add-ins or Autodesk account needed
+13. Live monitoring doesn't modify or block active journals; selected old journals can be moved to the Recycle Bin
 14. Collects no personal data; free and open source (GPL-3.0)
 
 ## Search terms (up to 7, each up to 30 characters)
@@ -117,7 +120,8 @@ Licensed under the GNU General Public License v3.0 or later: https://www.gnu.org
 
 ## Additional system requirements
 
-- Autodesk Revit installed and run on the same PC (the app reads its journal files).
+- Autodesk Revit installed on the same PC for live monitoring; supports versions that write journals under `%LOCALAPPDATA%\Autodesk\Revit\Autodesk Revit 20XX\Journals`.
+- Saved journal files can be opened without Revit running.
 - Windows 10 version 2004 (build 19041) or later, x64.
 
 ## Website, support and privacy
@@ -136,7 +140,7 @@ Licensed under the GNU General Public License v3.0 or later: https://www.gnu.org
 
 The package declares `runFullTrust`. Partner Center asks why. Suggested answer:
 
-> The Revit Matrix is a desktop (WPF, .NET 8) app packaged with MSIX. It needs full trust to read Autodesk Revit's journal files in %LOCALAPPDATA%\Autodesk\Revit while Revit has them open, to list running Revit.exe processes so each session can be matched to its journal, and to read Windows performance counters for the CPU, memory and GPU graphs. It only reads these; it never writes to Revit's files or other apps' data.
+> The Revit Matrix is a WPF desktop app packaged with MSIX. It needs full trust to enumerate running Revit.exe processes, read their local journal files while Revit is writing them, and collect the process and system performance data shown in its graphs. The Journal folders view also lets users explicitly move selected old journals to the Recycle Bin; journals in use by a running Revit session are kept. The app does not modify active journals, collect personal data, or send journal contents over the internet.
 
 ## Screenshots (1 to 10; 1366×768 or larger, PNG)
 
