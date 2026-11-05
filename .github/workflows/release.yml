@@ -62,7 +62,7 @@ jobs:
           "msi=$($msi.FullName)" >> $env:GITHUB_OUTPUT
           Write-Host "$($msi.Name)  $hash"
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: TheRevitMatrix-msi
           path: |
