@@ -622,9 +622,9 @@
             <Separator/>
             <MenuItem x:Name="MenuPerf" Header="Revit performance" InputGestureText="F2" Click="MenuPerf_Click"/>
             <Separator/>
-            <MenuItem x:Name="MenuStart" Header="Start" InputGestureText="Home" Click="MenuStart_Click"
+            <MenuItem x:Name="MenuStart" Header="Start" InputGestureText="Home, Ctrl+Home" Click="MenuStart_Click"
                       ToolTip="Go to the first line of the log"/>
-            <MenuItem x:Name="MenuCurrent" Header="Current" InputGestureText="End" Click="MenuCurrent_Click"
+            <MenuItem x:Name="MenuCurrent" Header="Current" InputGestureText="End, Ctrl+End" Click="MenuCurrent_Click"
                       ToolTip="Go to the latest line; auto-scroll follows new lines again"/>
             <Separator x:Name="MenuLogSeparator"/>
             <MenuItem x:Name="MenuBookmark" Header="Bookmark this line" InputGestureText="Ctrl+B" Click="MenuBookmark_Click"/>

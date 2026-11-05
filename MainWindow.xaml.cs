@@ -1011,7 +1011,7 @@ public partial class MainWindow : Window
     /// <summary>
     /// Home, End, Page Up, Page Down and the up and down arrows move through the log wherever the
     /// focus is, except in a text box or list (where they keep their usual meaning). In the log itself
-    /// the arrows and pages work as usual, and Home and End go to the first and latest line.
+    /// the arrows and pages work as usual, and Home and End (and Ctrl+Home, Ctrl+End) go to the first and latest line.
     /// Shift extends the selection.
     /// </summary>
     private bool HandleLogNavigation(KeyEventArgs e)
@@ -1029,7 +1029,8 @@ public partial class MainWindow : Window
                 || FindParent<ComboBox>(focused) != null || FindParent<System.Windows.Controls.Primitives.MenuBase>(focused) != null))
             return false;                                    // typing, or moving in a list or menu
         if (inLog && key is not (Key.Home or Key.End)) return false;   // the editor handles these itself
-        if (inLog && mods.HasFlag(ModifierKeys.Control)) return false; // Ctrl+Home/End: editor default (same result)
+        // Ctrl+Home / Ctrl+End do the same as Home / End (the usual Windows keys for first / last line).
+        if (mods.HasFlag(ModifierKeys.Control) && key is not (Key.Home or Key.End)) return false;
 
         var area = Output.TextArea;
         RoutedUICommand command = key switch
