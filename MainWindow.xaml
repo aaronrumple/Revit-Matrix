@@ -940,7 +940,17 @@
                                 <ListView x:Name="FileList" SelectionMode="Extended" SelectionChanged="FileList_SelectionChanged"
                                           MouseDoubleClick="FileList_DoubleClick" KeyDown="FileList_KeyDown"
                                           GridViewColumnHeader.Click="List_HeaderClick"
-                                          ToolTip="Click, Ctrl+click or Shift+click to select journals. Double-click to open one in a tab.">
+                                          ToolTip="Click, Ctrl+click or Shift+click to select journals. Double-click to open one in a tab. Right-click for more.">
+                                    <ListView.ContextMenu>
+                                        <ContextMenu x:Name="FileMenu" Opened="FileMenu_Opened">
+                                            <MenuItem x:Name="FileMenuOpen" Header="Open in a tab" InputGestureText="Double-click" FontWeight="SemiBold" Click="FileMenuOpen_Click"/>
+                                            <MenuItem x:Name="FileMenuEditor" Header="Open in text editor" Click="FileMenuEditor_Click"/>
+                                            <MenuItem x:Name="FileMenuFolder" Header="Open containing folder" Click="FileMenuFolder_Click"/>
+                                            <MenuItem x:Name="FileMenuCopyPath" Header="Copy path" Click="FileMenuCopyPath_Click"/>
+                                            <Separator/>
+                                            <MenuItem x:Name="FileMenuRecycle" Header="Move to Recycle Bin" InputGestureText="Delete" Click="RecycleSelected_Click"/>
+                                        </ContextMenu>
+                                    </ListView.ContextMenu>
                                     <ListView.View>
                                         <GridView>
                                             <GridViewColumn Header="Journal" Width="130" DisplayMemberBinding="{Binding Name}"/>

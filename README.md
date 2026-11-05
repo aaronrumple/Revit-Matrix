@@ -23,7 +23,7 @@ The Revit Matrix is a Windows desktop app that finds your running Revit sessions
 | **Slow operations** | Every operation Revit timed (opens, saves, syncs, regenerations, views…), with how long it took; sortable, click to jump to the line. |
 | **Add-in startup** | Which add-ins slowed Revit's startup, slowest first, with the memory each added. |
 | **Session summary** | Files, saves, syncs, commands, errors, warnings, slowest operations and peak memory, as plain text to copy into a support ticket. |
-| **Journal folders** | Size of every Revit version's journal folder; select one or more journals (or every one older than N days) and move them to the Recycle Bin. |
+| **Journal folders** | Size of every Revit version's journal folder; select one or more journals (or every one older than N days) and move them to the Recycle Bin; right-click a journal to open it in a tab or text editor, open its folder, copy its path or recycle it. |
 | **Errors & bookmarks** | **F8** / **Shift+F8** jump between errors and warnings; **Ctrl+B** bookmarks a line, **F9** / **Shift+F9** move between bookmarks. |
 | **Notifications** | While the app is in the background, a Windows notification for errors and for long opens, saves and syncs. |
 | **Performance panel** | Click the chart button in the title bar (or press **F2**) to slide out live graphs of the selected tab's Revit CPU, memory, GPU and GPU memory over the last 5 minutes, with current values and peaks. |

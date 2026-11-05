@@ -738,10 +738,68 @@ public partial class MainWindow : Window
 
     private void FileList_DoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (FileList.SelectedItem is not JournalFileInfo f) return;
-        var open = _tabs.FirstOrDefault(t => string.Equals(t.Path, f.Path, StringComparison.OrdinalIgnoreCase));
-        if (open != null) SelectTab(open);
-        else OpenTab(f.Path, null, select: true);
+        // only on a row, not the header or empty space
+        if (e.OriginalSource is DependencyObject d && FindParent<ListViewItem>(d) == null) return;
+        if (FileList.SelectedItem is JournalFileInfo f) OpenJournalInTab(f.Path, select: true);
+    }
+
+    private void OpenJournalInTab(string path, bool select)
+    {
+        var open = _tabs.FirstOrDefault(t => string.Equals(t.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (open != null) { if (select) SelectTab(open); }
+        else OpenTab(path, null, select);
+    }
+
+    // ---- right-click menu on a journal (the row under the pointer is selected by the right-click)
+
+    private List<JournalFileInfo> SelectedJournals => FileList.SelectedItems.Cast<JournalFileInfo>().ToList();
+
+    private void FileMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var sel = SelectedJournals;
+        int n = sel.Count;
+        foreach (var item in FileMenu.Items.OfType<MenuItem>()) item.IsEnabled = n > 0;
+        FileMenuOpen.Header = n > 1 ? $"Open {n} journals in tabs" : "Open in a tab";
+        FileMenuEditor.Header = n > 1 ? $"Open {n} journals in text editor" : "Open in text editor";
+        FileMenuEditor.IsEnabled = n is > 0 and <= 10;
+        FileMenuFolder.IsEnabled = n > 0;
+        FileMenuCopyPath.Header = n > 1 ? $"Copy {n} paths" : "Copy path";
+        int allowed = sel.Count(f => f.State.Length == 0);
+        FileMenuRecycle.Header = n > 1 ? $"Move {allowed} journals to Recycle Bin" : "Move to Recycle Bin";
+        FileMenuRecycle.IsEnabled = allowed > 0;
+        FileMenuRecycle.ToolTip = allowed < n ? "Journals a running Revit or a tab here has open are kept." : null;
+    }
+
+    private void FileMenuOpen_Click(object sender, RoutedEventArgs e)
+    {
+        var sel = SelectedJournals;
+        for (int i = 0; i < sel.Count; i++) OpenJournalInTab(sel[i].Path, select: i == sel.Count - 1);
+    }
+
+    private void FileMenuEditor_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var f in SelectedJournals.Take(10)) OpenExternal(f.Path);   // the .txt's default app, usually Notepad
+    }
+
+    private void FileMenuFolder_Click(object sender, RoutedEventArgs e)
+    {
+        // Explorer opens the folder with the journal selected (one window per folder).
+        foreach (var f in SelectedJournals.GroupBy(f => System.IO.Path.GetDirectoryName(f.Path), StringComparer.OrdinalIgnoreCase).Select(g => g.First()))
+        {
+            try { Process.Start("explorer.exe", $"/select,\"{f.Path}\""); }
+            catch (Exception ex) { SetStatus($"Could not open the folder: {ex.Message}"); }
+        }
+    }
+
+    private void FileMenuCopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        var sel = SelectedJournals;
+        try
+        {
+            Clipboard.SetText(string.Join(Environment.NewLine, sel.Select(f => f.Path)));
+            SetStatus(sel.Count == 1 ? $"Copied {sel[0].Path}" : $"Copied {sel.Count} paths.");
+        }
+        catch (Exception ex) { SetStatus($"Could not copy: {ex.Message}"); }
     }
 
     private void RecycleSelected_Click(object sender, RoutedEventArgs e)
