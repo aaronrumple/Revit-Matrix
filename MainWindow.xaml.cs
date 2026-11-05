@@ -197,7 +197,11 @@ public partial class MainWindow : Window
         else SystemCommands.MaximizeWindow(this);
     }
 
-    private void CapClose_Click(object sender, RoutedEventArgs e) => SystemCommands.CloseWindow(this);
+    private void CapClose_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        Close();
+    }
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {
